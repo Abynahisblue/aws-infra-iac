@@ -117,10 +117,11 @@ Resources:
       LoadBalancerAttributes:
         - Key: "deletion_protection.enabled"
           Value: "false"
-      Subnets: !Split
-      - ",",
-      - !ImportValue
-          Fn::Sub: "${ProjectName}-PublicSubnets"]
+      Subnets:
+        !Split
+        - ","
+        - !ImportValue
+          Fn::Sub: "${ProjectName}-PublicSubnets"
       SecurityGroups:
         - !Ref ALBSecurityGroup
 
