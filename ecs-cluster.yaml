@@ -4,7 +4,7 @@ Description: "ECS Cluster, ALB, S3 Bucket, ECR, and IAM Roles for the WebApp pro
 Parameters:
   ProjectName:
     Type: String
-    Default: "WebApp"
+    Default: "webapp"
     Description: "A name for the project to be used as a prefix for resources. Must match the ProjectName from the VPC stack."
   ContainerPort:
     Type: Number
