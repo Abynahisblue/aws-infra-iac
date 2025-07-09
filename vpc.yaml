@@ -4,7 +4,7 @@ Description: "VPC Infrastructure for Highly Available ECS Project. Creates a VPC
 Parameters:
   ProjectName:
     Type: String
-    Default: "WebApp"
+    Default: "webapp"
     Description: "A name for the project to be used as a prefix for resources."
   VpcCIDR:
     Type: String
