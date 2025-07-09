@@ -273,7 +273,7 @@ Resources:
         Type: "CODE_DEPLOY"
       NetworkConfiguration:
         AwsvpcConfiguration:
-          AssignPublicIp: "DISABLED"
+          AssignPublicIp: "ENABLED"
           SecurityGroups:
             - !Ref ECSServiceSecurityGroup
           # FIXED: Changed from PublicSubnets to PrivateSubnets
