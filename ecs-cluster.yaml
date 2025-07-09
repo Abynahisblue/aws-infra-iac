@@ -1,0 +1,349 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "ECS Cluster, ALB, S3 Bucket, ECR, and IAM Roles for the WebApp project. Depends on the VPC stack."
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: "WebApp"
+    Description: "A name for the project to be used as a prefix for resources. Must match the ProjectName from the VPC stack."
+  ContainerPort:
+    Type: Number
+    Default: 8080
+    Description: "The port the container will be listening on."
+
+Resources:
+  # --- IAM Roles ---
+  ECSTaskExecutionRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      RoleName: !Sub "${ProjectName}-ECSTaskExecutionRole"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: "ecs-tasks.amazonaws.com"
+            Action: "sts:AssumeRole"
+      ManagedPolicyArns:
+        - "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
+
+  ECSTaskRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      RoleName: !Sub "${ProjectName}-ECSTaskRole"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: "ecs-tasks.amazonaws.com"
+            Action: "sts:AssumeRole"
+      Policies:
+        - PolicyName: !Sub "${ProjectName}-S3AccessPolicy"
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - "s3:GetObject"
+                  - "s3:PutObject"
+                  - "s3:DeleteObject"
+                  - "s3:ListBucket"
+                Resource:
+                  - !GetAtt S3Bucket.Arn
+                  - !Sub "${S3Bucket.Arn}/*"
+
+  # --- Storage (S3) ---
+  S3Bucket:
+    Type: "AWS::S3::Bucket"
+    Properties:
+      BucketName: !Sub "${ProjectName}-images-${AWS::AccountId}"
+      AccessControl: Private
+      CorsConfiguration:
+        CorsRules:
+          - AllowedHeaders: ["*"]
+            AllowedMethods: ["GET", "PUT", "POST", "DELETE", "HEAD"]
+            AllowedOrigins: ["*"] # For production, restrict this to your domain
+            MaxAge: 3000
+
+  # --- Container Registry (ECR) ---
+  ECRRepository:
+    Type: "AWS::ECR::Repository"
+    Properties:
+      RepositoryName: !Sub "${ProjectName}/app"
+      ImageScanningConfiguration:
+        ScanOnPush: true
+      ImageTagMutability: MUTABLE
+
+  # --- Security Groups ---
+  ALBSecurityGroup:
+    Type: "AWS::EC2::SecurityGroup"
+    Properties:
+      GroupName: !Sub "${ProjectName}-ALB-SG"
+      GroupDescription: "Allow HTTP traffic to ALB"
+      VpcId: !ImportValue
+        'Fn::Sub': "${ProjectName}-VPCId"
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: "0.0.0.0/0"
+      Tags:
+        - Key: Name
+          Value: !Sub "${ProjectName}-ALB-SG"
+
+  ECSServiceSecurityGroup:
+    Type: "AWS::EC2::SecurityGroup"
+    Properties:
+      GroupName: !Sub "${ProjectName}-ECS-Service-SG"
+      GroupDescription: "Allow traffic from ALB to ECS tasks"
+      VpcId: !ImportValue
+        'Fn::Sub': "${ProjectName}-VPCId"
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: !Ref ContainerPort
+          ToPort: !Ref ContainerPort
+          SourceSecurityGroupId: !Ref ALBSecurityGroup
+      Tags:
+        - Key: Name
+          Value: !Sub "${ProjectName}-ECS-Service-SG"
+
+  # --- Load Balancer (ALB) ---
+  ApplicationLoadBalancer:
+    Type: "AWS::ElasticLoadBalancingV2::LoadBalancer"
+    Properties:
+      Name: !Sub "${ProjectName}-ALB"
+      Scheme: "internet-facing"
+      LoadBalancerAttributes:
+        - Key: "deletion_protection.enabled"
+          Value: "false"
+      Subnets: !Split [",", !ImportValue !Sub "${ProjectName}-PublicSubnets"]
+      SecurityGroups:
+        - !Ref ALBSecurityGroup
+
+  ALBListener:
+    Type: "AWS::ElasticLoadBalancingV2::Listener"
+    Properties:
+      LoadBalancerArn: !Ref ApplicationLoadBalancer
+      Protocol: "HTTP"
+      Port: 80
+      DefaultActions:
+        - Type: "forward"
+          TargetGroupArn: !Ref BlueTargetGroup
+
+  BlueTargetGroup:
+    Type: "AWS::ElasticLoadBalancingV2::TargetGroup"
+    Properties:
+      Name: !Sub "${ProjectName}-Blue-TG"
+      VpcId: !ImportValue
+        'Fn::Sub': "${ProjectName}-VPCId"
+      Protocol: "HTTP"
+      Port: !Ref ContainerPort
+      HealthCheckProtocol: "HTTP"
+      HealthCheckPath: "/actuator/health"
+      HealthCheckIntervalSeconds: 30
+      HealthCheckTimeoutSeconds: 5
+      HealthyThresholdCount: 2
+      UnhealthyThresholdCount: 2
+      TargetType: "ip"
+
+  GreenTargetGroup:
+    Type: "AWS::ElasticLoadBalancingV2::TargetGroup"
+    Properties:
+      Name: !Sub "${ProjectName}-Green-TG"
+      VpcId: !ImportValue
+        'Fn::Sub': "${ProjectName}-VPCId"
+      Protocol: "HTTP"
+      Port: !Ref ContainerPort
+      HealthCheckProtocol: "HTTP"
+      HealthCheckPath: "/actuator/health"
+      HealthCheckIntervalSeconds: 30
+      HealthCheckTimeoutSeconds: 5
+      HealthyThresholdCount: 2
+      UnhealthyThresholdCount: 2
+      TargetType: "ip"
+
+  # --- ECS Cluster ---
+  ECSCluster:
+    Type: "AWS::ECS::Cluster"
+    Properties:
+      ClusterName: !Sub "${ProjectName}-Cluster"
+
+  # --- ECS Task Definition ---
+  ECSTaskDefinition:
+    Type: "AWS::ECS::TaskDefinition"
+    Properties:
+      Family: !Sub "${ProjectName}-app-task"
+      NetworkMode: "awsvpc"
+      RequiresCompatibilities:
+        - "FARGATE"
+      Cpu: "1024" # 1 vCPU
+      Memory: "2048" # 2 GB
+      ExecutionRoleArn: !Ref ECSTaskExecutionRole
+      TaskRoleArn: !Ref ECSTaskRole
+      ContainerDefinitions:
+        - Name: !Sub "${ProjectName}-app-container"
+          # This is a placeholder image. The CI/CD pipeline will update this.
+          Image: "public.ecr.aws/ecs-sample-images/amazon-ecs-sample:latest"
+          PortMappings:
+            - ContainerPort: !Ref ContainerPort
+              Protocol: "tcp"
+          LogConfiguration:
+            LogDriver: "awslogs"
+            Options:
+              awslogs-group: !Ref LogGroup
+              awslogs-region: !Ref "AWS::Region"
+              awslogs-stream-prefix: "ecs"
+
+  LogGroup:
+    Type: "AWS::Logs::LogGroup"
+    Properties:
+      LogGroupName: !Sub "/ecs/${ProjectName}-app"
+      RetentionInDays: 7
+
+  # --- CodeDeploy for Blue/Green ---
+  CodeDeployApplication:
+    Type: "AWS::CodeDeploy::Application"
+    Properties:
+      ApplicationName: !Sub "${ProjectName}-CodeDeploy-App"
+      ComputePlatform: "ECS"
+
+  CodeDeployDeploymentGroup:
+    Type: "AWS::CodeDeploy::DeploymentGroup"
+    Properties:
+      ApplicationName: !Ref CodeDeployApplication
+      DeploymentGroupName: !Sub "${ProjectName}-CodeDeploy-DG"
+      ServiceRoleArn: !GetAtt CodeDeployServiceRole.Arn
+      DeploymentConfigName: "CodeDeployDefault.ECSAllAtOnce"
+      DeploymentStyle:
+        DeploymentType: "BLUE_GREEN"
+        DeploymentOption: "WITH_TRAFFIC_CONTROL"
+      BlueGreenDeploymentConfiguration:
+        TerminateBlueInstancesOnDeploymentSuccess:
+          Action: "TERMINATE"
+          TerminationWaitTimeInMinutes: 5
+        DeploymentReadyOption:
+          ActionOnTimeout: "CONTINUE_DEPLOYMENT"
+      AutoRollbackConfiguration:
+        Enabled: true
+        Events:
+          - "DEPLOYMENT_FAILURE"
+          - "DEPLOYMENT_STOP_ON_ALARM"
+      EcsServices:
+        - ClusterName: !Ref ECSCluster
+          ServiceName: !Ref ECSService
+      LoadBalancerInfo:
+        TargetGroupPairInfoList:
+          - TargetGroups:
+              - Name: !Ref BlueTargetGroup
+              - Name: !Ref GreenTargetGroup
+            ProdTrafficRoute:
+              ListenerArns:
+                - !Ref ALBListener
+
+  CodeDeployServiceRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      RoleName: !Sub "${ProjectName}-CodeDeployRole"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: "Allow"
+            Principal:
+              Service: [codedeploy.amazonaws.com]
+            Action: ["sts:AssumeRole"]
+      ManagedPolicyArns:
+        - "arn:aws:iam::aws:policy/AWSCodeDeployRoleForECS"
+
+  # --- ECS Service ---
+  ECSService:
+    Type: "AWS::ECS::Service"
+    DependsOn: ALBListener
+    Properties:
+      ServiceName: !Sub "${ProjectName}-Service"
+      Cluster: !Ref ECSCluster
+      TaskDefinition: !Ref ECSTaskDefinition
+      LaunchType: "FARGATE"
+      DesiredCount: 2 # Start with 2 tasks for high availability
+      DeploymentController:
+        Type: "CODE_DEPLOY"
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          AssignPublicIp: "DISABLED"
+          SecurityGroups:
+            - !Ref ECSServiceSecurityGroup
+          Subnets: !Split [",", !ImportValue !Sub "${ProjectName}-PrivateSubnets"]
+      LoadBalancers:
+        - ContainerName: !Sub "${ProjectName}-app-container"
+          ContainerPort: !Ref ContainerPort
+          TargetGroupArn: !Ref BlueTargetGroup
+
+  # --- Auto Scaling for ECS Service ---
+  ECSServiceScalingTarget:
+    Type: "AWS::ApplicationAutoScaling::ScalableTarget"
+    Properties:
+      MaxCapacity: 6
+      MinCapacity: 2
+      ResourceId: !Sub "service/${ECSCluster.ClusterName}/${ECSService.Name}"
+      RoleARN: !GetAtt AutoscalingRole.Arn
+      ScalableDimension: "ecs:service:DesiredCount"
+      ServiceNamespace: "ecs"
+
+  ECSServiceScalingPolicy:
+    Type: "AWS::ApplicationAutoScaling::ScalingPolicy"
+    Properties:
+      PolicyName: !Sub "${ProjectName}-cpu-scaling-policy"
+      PolicyType: "TargetTrackingScaling"
+      ScalingTargetId: !Ref ECSServiceScalingTarget
+      TargetTrackingScalingPolicyConfiguration:
+        TargetValue: 50.0
+        ScaleInCooldown: 60
+        ScaleOutCooldown: 60
+        PredefinedMetricSpecification:
+          PredefinedMetricType: "ECSServiceAverageCPUUtilization"
+
+  AutoscalingRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      RoleName: !Sub "${ProjectName}-AutoscalingRole"
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: "Allow"
+            Principal:
+              Service: [application-autoscaling.amazonaws.com]
+            Action: ["sts:AssumeRole"]
+      Path: "/"
+      Policies:
+        - PolicyName: !Sub "${ProjectName}-autoscaling-policy"
+          PolicyDocument:
+            Statement:
+              - Effect: "Allow"
+                Action:
+                  - "application-autoscaling:*"
+                  - "ecs:DescribeServices"
+                  - "ecs:UpdateService"
+                  - "cloudwatch:DescribeAlarms"
+                  - "cloudwatch:GetMetricStatistics"
+                Resource: "*"
+
+Outputs:
+  ECSClusterName:
+    Description: "The name of the ECS Cluster"
+    Value: !Ref ECSCluster
+    Export:
+      Name: !Sub "${ProjectName}-ECSClusterName"
+  ECRRepositoryUri:
+    Description: "The URI of the ECR Repository"
+    Value: !GetAtt ECRRepository.RepositoryUri
+    Export:
+      Name: !Sub "${ProjectName}-ECRRepositoryUri"
+  ALBEndpoint:
+    Description: "The DNS name of the Application Load Balancer"
+    Value: !GetAtt ApplicationLoadBalancer.DNSName
+    Export:
+      Name: !Sub "${ProjectName}-ALBEndpoint"
+  S3BucketName:
+    Description: "The name of the S3 bucket for image uploads"
+    Value: !Ref S3Bucket
+    Export:
+      Name: !Sub "${ProjectName}-S3BucketName"
