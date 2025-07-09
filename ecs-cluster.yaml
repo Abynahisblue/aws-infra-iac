@@ -117,7 +117,10 @@ Resources:
       LoadBalancerAttributes:
         - Key: "deletion_protection.enabled"
           Value: "false"
-      Subnets: !Split [",", !ImportValue !Sub "${ProjectName}-PublicSubnets"]
+      Subnets: !Split
+      - ",",
+      - !ImportValue
+          Fn::Sub: "${ProjectName}-PublicSubnets"]
       SecurityGroups:
         - !Ref ALBSecurityGroup
 
@@ -272,7 +275,10 @@ Resources:
           AssignPublicIp: "DISABLED"
           SecurityGroups:
             - !Ref ECSServiceSecurityGroup
-          Subnets: !Split [",", !ImportValue !Sub "${ProjectName}-PrivateSubnets"]
+          Subnets: !Split
+            - ","
+            - !ImportValue
+              Fn::Sub: "${ProjectName}-PublicSubnets"
       LoadBalancers:
         - ContainerName: !Sub "${ProjectName}-app-container"
           ContainerPort: !Ref ContainerPort
