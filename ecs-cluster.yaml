@@ -70,7 +70,7 @@ Resources:
   ECRRepository:
     Type: "AWS::ECR::Repository"
     Properties:
-      RepositoryName: !Sub "${ProjectName}/app"
+      RepositoryName: !Sub "${ProjectName}-app"
       ImageScanningConfiguration:
         ScanOnPush: true
       ImageTagMutability: MUTABLE
