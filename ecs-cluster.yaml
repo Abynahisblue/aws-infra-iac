@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: "2010-09-09"
-Description: "ECS Cluster, ALB, S3 Bucket, ECR, and IAM Roles for the WebApp project. Depends on the VPC stack."
+Description: "FIXED: ECS Cluster, ALB, S3 Bucket, ECR, and IAM Roles for the WebApp project. Depends on the VPC stack."
 
 Parameters:
   ProjectName:
@@ -125,6 +125,7 @@ Resources:
       SecurityGroups:
         - !Ref ALBSecurityGroup
 
+
   ALBListener:
     Type: "AWS::ElasticLoadBalancingV2::Listener"
     Properties:
@@ -144,7 +145,7 @@ Resources:
       Protocol: "HTTP"
       Port: !Ref ContainerPort
       HealthCheckProtocol: "HTTP"
-      HealthCheckPath: "/actuator/health"
+      HealthCheckPath: "/" # FIXED: Changed to root path for placeholder image
       HealthCheckIntervalSeconds: 30
       HealthCheckTimeoutSeconds: 5
       HealthyThresholdCount: 2
@@ -160,7 +161,7 @@ Resources:
       Protocol: "HTTP"
       Port: !Ref ContainerPort
       HealthCheckProtocol: "HTTP"
-      HealthCheckPath: "/actuator/health"
+      HealthCheckPath: "/" # FIXED: Changed to root path for placeholder image
       HealthCheckIntervalSeconds: 30
       HealthCheckTimeoutSeconds: 5
       HealthyThresholdCount: 2
@@ -187,7 +188,6 @@ Resources:
       TaskRoleArn: !Ref ECSTaskRole
       ContainerDefinitions:
         - Name: !Sub "${ProjectName}-app-container"
-          # This is a placeholder image. The CI/CD pipeline will update this.
           Image: "public.ecr.aws/ecs-sample-images/amazon-ecs-sample:latest"
           PortMappings:
             - ContainerPort: !Ref ContainerPort
@@ -268,7 +268,7 @@ Resources:
       Cluster: !Ref ECSCluster
       TaskDefinition: !Ref ECSTaskDefinition
       LaunchType: "FARGATE"
-      DesiredCount: 2 # Start with 2 tasks for high availability
+      DesiredCount: 2
       DeploymentController:
         Type: "CODE_DEPLOY"
       NetworkConfiguration:
@@ -276,10 +276,12 @@ Resources:
           AssignPublicIp: "DISABLED"
           SecurityGroups:
             - !Ref ECSServiceSecurityGroup
-          Subnets: !Split
+          # FIXED: Changed from PublicSubnets to PrivateSubnets
+          Subnets:
+            !Split
             - ","
             - !ImportValue
-              Fn::Sub: "${ProjectName}-PublicSubnets"
+              Fn::Sub: "${ProjectName}-PrivateSubnets"
       LoadBalancers:
         - ContainerName: !Sub "${ProjectName}-app-container"
           ContainerPort: !Ref ContainerPort
