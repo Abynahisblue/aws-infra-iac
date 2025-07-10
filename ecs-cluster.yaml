@@ -63,9 +63,9 @@ Resources:
       Cpu: '512'
       Memory: '1024'
       ExecutionRoleArn:
-        Fn::ImportValue: !Sub '${ProjectName}-${Environment}-${DeploymentEnvironment}-ECSTaskExecutionRole-ARN'
+        Fn::ImportValue: !Sub '${ProjectName}-${Environment}-ECSTaskExecutionRole-ARN'
       TaskRoleArn:
-        Fn::ImportValue: !Sub '${ProjectName}-${Environment}-${DeploymentEnvironment}-ECSTaskRole-ARN'
+        Fn::ImportValue: !Sub '${ProjectName}-${Environment}-ECSTaskRole-ARN'
       ContainerDefinitions:
         - Name: !Sub '${ProjectName}-${Environment}-container'
           Image: !Ref ContainerImage
