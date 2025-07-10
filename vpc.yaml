@@ -301,16 +301,9 @@ Resources:
         RestrictPublicBuckets: false
       CorsConfiguration:
         CorsRules:
-          - AllowedHeaders:
-              - '*'
-            AllowedMethods:
-              - GET
-              - PUT
-              - POST
-              - DELETE
-              - HEAD
-            AllowedOrigins:
-              - '*'
+          - AllowedHeaders: ['*']
+            AllowedMethods: [GET, PUT, POST, DELETE, HEAD]
+            AllowedOrigins: ['*']
             MaxAge: 3600
       Tags:
         - Key: Name
@@ -329,12 +322,13 @@ Resources:
             Effect: Allow
             Principal: '*'
             Action: 's3:GetObject'
-            Resource: !Sub 'arn:aws:s3:::${ImageBucket}/*'
+            Resource: !Sub '${ImageBucket.Arn}/*'
           - Sid: PublicListBucket
             Effect: Allow
             Principal: '*'
             Action: 's3:ListBucket'
-            Resource: !Sub 'arn:aws:s3:::${ImageBucket}'
+            Resource: !GetAtt ImageBucket.Arn
+
 
   # ECR Repository
   ECRRepository:
@@ -515,8 +509,8 @@ Resources:
                   - s3:DeleteObject
                   - s3:ListBucket
                 Resource:
-                  - !Sub 'arn:aws:s3:::${ImageBucket}'
-                  - !Sub 'arn:aws:s3:::${ImageBucket}/*'
+                  - !GetAtt ImageBucket.Arn
+                  - !Sub '${ImageBucket.Arn}/*'
       Tags:
         - Key: Name
           Value: !Sub '${ProjectName}-${Environment}-ECSTaskRole'
