@@ -515,8 +515,8 @@ Resources:
                   - s3:DeleteObject
                   - s3:ListBucket
                 Resource:
-                  - !Sub '${ImageBucket}/*'
-                  - !Ref ImageBucket
+                  - !Sub 'arn:aws:s3:::${ImageBucket}'
+                  - !Sub 'arn:aws:s3:::${ImageBucket}/*'
       Tags:
         - Key: Name
           Value: !Sub '${ProjectName}-${Environment}-ECSTaskRole'
