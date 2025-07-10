@@ -114,7 +114,7 @@ Resources:
       NetworkConfiguration:
         AwsvpcConfiguration:
           SecurityGroups:
-            - Fn::ImportValue: !Sub '${ProjectName}-${Environment}-${DeploymentEnvironment}-ECS-SG-ID'
+            - Fn::ImportValue: !Sub '${ProjectName}-${Environment}-ECS-SG-ID'
           Subnets:
             - Fn::ImportValue: !Sub '${ProjectName}-${Environment}-PrivateSubnet1-ID'
             - Fn::ImportValue: !Sub '${ProjectName}-${Environment}-PrivateSubnet2-ID'
