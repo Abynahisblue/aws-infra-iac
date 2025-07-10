@@ -329,12 +329,12 @@ Resources:
             Effect: Allow
             Principal: '*'
             Action: 's3:GetObject'
-            Resource: !Sub '${ImageBucket}/*'
+            Resource: !Sub 'arn:aws:s3:::${ImageBucket}/*'
           - Sid: PublicListBucket
             Effect: Allow
             Principal: '*'
             Action: 's3:ListBucket'
-            Resource: !Ref ImageBucket
+            Resource: !Sub 'arn:aws:s3:::${ImageBucket}'
 
   # ECR Repository
   ECRRepository:
