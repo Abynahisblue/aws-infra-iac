@@ -202,11 +202,11 @@ Resources:
   SNSTopic:
     Type: AWS::SNS::Topic
     Properties:
-      TopicName: !Sub '${ProjectName}-${Environment}-Notifications'
-      DisplayName: !Sub '${ProjectName} ${Environment} Notifications'
+      TopicName: !Sub '${ProjectName}-${Environment}-${DeploymentEnvironment}-Notifications'
+      DisplayName: !Sub '${ProjectName} ${Environment} ${DeploymentEnvironment} Notifications'
       Tags:
         - Key: Name
-          Value: !Sub '${ProjectName}-${Environment}-SNS-Topic'
+          Value: !Sub '${ProjectName}-${Environment}-${DeploymentEnvironment}-SNS-Topic'
         - Key: Project
           Value: !Ref ProjectName
 
@@ -273,4 +273,4 @@ Outputs:
     Description: 'SNS Topic ARN for notifications'
     Value: !Ref SNSTopic
     Export:
-      Name: !Sub '${ProjectName}-${Environment}-SNS-Topic-ARN'
+      Name: !Sub '${ProjectName}-${Environment}-${DeploymentEnvironment}-SNS-Topic-ARN'
