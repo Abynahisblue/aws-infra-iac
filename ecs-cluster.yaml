@@ -63,9 +63,9 @@ Resources:
       Cpu: '512'
       Memory: '1024'
       ExecutionRoleArn:
-        Fn::ImportValue: !Sub '${ProjectName}-${Environment}-ECSTaskExecutionRole-ARN'
+        Fn::ImportValue: !Sub '${ProjectName}-${Environment}-${DeploymentEnvironment}-ECSTaskExecutionRole-ARN'
       TaskRoleArn:
-        Fn::ImportValue: !Sub '${ProjectName}-${Environment}-ECSTaskRole-ARN'
+        Fn::ImportValue: !Sub '${ProjectName}-${Environment}-${DeploymentEnvironment}-ECSTaskRole-ARN'
       ContainerDefinitions:
         - Name: !Sub '${ProjectName}-${Environment}-container'
           Image: !Ref ContainerImage
@@ -98,7 +98,7 @@ Resources:
             StartPeriod: 60
       Tags:
         - Key: Name
-          Value: !Sub '${ProjectName}-${Environment}-TaskDefinition'
+          Value: !Sub '${ProjectName}-${Environment}-${DeploymentEnvironment}-TaskDefinition'
         - Key: Project
           Value: !Ref ProjectName
 
@@ -107,14 +107,14 @@ Resources:
     Properties:
       ServiceName: !Sub '${ProjectName}-${Environment}-${DeploymentEnvironment}-service'
       Cluster:
-        Fn::ImportValue: !Sub '${ProjectName}-${Environment}-ECS-Cluster-ARN'
+        Fn::ImportValue: !Sub '${ProjectName}-${Environment}-${DeploymentEnvironment}-ECS-Cluster-ARN'
       TaskDefinition: !Ref ECSTaskDefinition
       DesiredCount: !Ref DesiredCount
       LaunchType: FARGATE
       NetworkConfiguration:
         AwsvpcConfiguration:
           SecurityGroups:
-            - Fn::ImportValue: !Sub '${ProjectName}-${Environment}-ECS-SG-ID'
+            - Fn::ImportValue: !Sub '${ProjectName}-${Environment}-${DeploymentEnvironment}-ECS-SG-ID'
           Subnets:
             - Fn::ImportValue: !Sub '${ProjectName}-${Environment}-PrivateSubnet1-ID'
             - Fn::ImportValue: !Sub '${ProjectName}-${Environment}-PrivateSubnet2-ID'
@@ -146,7 +146,7 @@ Resources:
   ApplicationAutoScalingRole:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: !Sub '${ProjectName}-${Environment}-AutoScalingRole'
+      RoleName: !Sub '${ProjectName}-${Environment}-${DeploymentEnvironment}-AutoScalingRole'
       AssumeRolePolicyDocument:
         Version: '2012-10-17'
         Statement:
@@ -158,7 +158,7 @@ Resources:
         - arn:aws:iam::aws:policy/service-role/AmazonEC2ContainerServiceAutoscaleRole
       Tags:
         - Key: Name
-          Value: !Sub '${ProjectName}-${Environment}-AutoScalingRole'
+          Value: !Sub '${ProjectName}-${Environment}-${DeploymentEnvironment}-AutoScalingRole'
         - Key: Project
           Value: !Ref ProjectName
 
@@ -176,7 +176,7 @@ Resources:
   CPUScalingPolicy:
     Type: AWS::ApplicationAutoScaling::ScalingPolicy
     Properties:
-      PolicyName: !Sub '${ProjectName}-${Environment}-CPUScalingPolicy'
+      PolicyName: !Sub '${ProjectName}-${Environment}-${DeploymentEnvironment}-CPUScalingPolicy'
       PolicyType: TargetTrackingScaling
       ScalingTargetId: !Ref ApplicationAutoScalingTarget
       TargetTrackingScalingPolicyConfiguration:
@@ -189,7 +189,7 @@ Resources:
   MemoryScalingPolicy:
     Type: AWS::ApplicationAutoScaling::ScalingPolicy
     Properties:
-      PolicyName: !Sub '${ProjectName}-${Environment}-MemoryScalingPolicy'
+      PolicyName: !Sub '${ProjectName}-${Environment}${DeploymentEnvironment}--MemoryScalingPolicy'
       PolicyType: TargetTrackingScaling
       ScalingTargetId: !Ref ApplicationAutoScalingTarget
       TargetTrackingScalingPolicyConfiguration:
@@ -213,7 +213,7 @@ Resources:
   HighCPUAlarm:
     Type: AWS::CloudWatch::Alarm
     Properties:
-      AlarmName: !Sub '${ProjectName}-${Environment}-HighCPU'
+      AlarmName: !Sub '${ProjectName}-${Environment}-${DeploymentEnvironment}-HighCPU'
       AlarmDescription: 'High CPU utilization alarm'
       MetricName: CPUUtilization
       Namespace: AWS/ECS
@@ -226,7 +226,7 @@ Resources:
         - Name: ServiceName
           Value: !Ref ECSService
         - Name: ClusterName
-          Value: !Sub '${ProjectName}-${Environment}-Cluster'
+          Value: !Sub '${ProjectName}-${Environment}-${DeploymentEnvironment}-Cluster'
       AlarmActions:
         - !Ref SNSTopic
 
@@ -246,7 +246,7 @@ Resources:
         - Name: ServiceName
           Value: !Ref ECSService
         - Name: ClusterName
-          Value: !Sub '${ProjectName}-${Environment}-Cluster'
+          Value: !Sub '${ProjectName}-${Environment}-${DeploymentEnvironment}-Cluster'
       AlarmActions:
         - !Ref SNSTopic
 
