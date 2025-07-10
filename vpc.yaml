@@ -312,9 +312,6 @@ Resources:
             AllowedOrigins:
               - '*'
             MaxAge: 3600
-      NotificationConfiguration:
-        CloudWatchConfigurations:
-          - Event: 's3:ObjectCreated:*'
       Tags:
         - Key: Name
           Value: !Sub '${ProjectName}-${Environment}-ImageBucket'
