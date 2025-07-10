@@ -49,6 +49,9 @@ Parameters:
     AllowedValues: ['blue', 'green']
     Description: 'Deployment environment (blue or green)'
 
+Conditions:
+  IsBlueEnvironment: !Equals [!Ref DeploymentEnvironment, 'blue']
+
 Resources:
   # ECS Task Definition
   ECSTaskDefinition:
@@ -89,7 +92,7 @@ Resources:
           HealthCheck:
             Command:
               - CMD-SHELL
-              - curl -f http://localhost:8080/health || exit 1
+              - !Sub 'curl -f http://localhost:${ContainerPort}/health || exit 1'
             Interval: 30
             Timeout: 5
             Retries: 3
@@ -131,7 +134,8 @@ Resources:
         DeploymentCircuitBreaker:
           Enable: true
           Rollback: true
-      ServiceTags:
+      EnableExecuteCommand: true
+      Tags:
         - Key: Name
           Value: !Sub '${ProjectName}-${Environment}-${DeploymentEnvironment}-Service'
         - Key: Project
@@ -140,26 +144,8 @@ Resources:
           Value: !Ref Environment
         - Key: DeploymentType
           Value: !Ref DeploymentEnvironment
-      EnableExecuteCommand: true
-      Tags:
-        - Key: Name
-          Value: !Sub '${ProjectName}-${Environment}-${DeploymentEnvironment}-Service'
-        - Key: Project
-          Value: !Ref ProjectName
 
-  # Application Auto Scaling Target
-  ApplicationAutoScalingTarget:
-    Type: AWS::ApplicationAutoScaling::ScalableTarget
-    Properties:
-      MaxCapacity: !Ref MaxCapacity
-      MinCapacity: !Ref MinCapacity
-      ResourceId: !Sub 'service/${ProjectName}-${Environment}-Cluster/${ProjectName}-${Environment}-${DeploymentEnvironment}-service'
-      RoleARN: !GetAtt ApplicationAutoScalingRole.Arn
-      ScalableDimension: ecs:service:DesiredCount
-      ServiceNamespace: ecs
-    DependsOn: ECSService
-
-  # Application Auto Scaling Role
+  # IAM Role for Auto Scaling
   ApplicationAutoScalingRole:
     Type: AWS::IAM::Role
     Properties:
@@ -172,25 +158,24 @@ Resources:
               Service: application-autoscaling.amazonaws.com
             Action: sts:AssumeRole
       ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/service-role/AmazonECSServiceRolePolicy
-      Policies:
-        - PolicyName: ECSServiceScaling
-          PolicyDocument:
-            Version: '2012-10-17'
-            Statement:
-              - Effect: Allow
-                Action:
-                  - ecs:DescribeServices
-                  - ecs:UpdateService
-                  - cloudwatch:DescribeAlarms
-                  - cloudwatch:PutMetricAlarm
-                  - cloudwatch:DeleteAlarms
-                Resource: '*'
+        - arn:aws:iam::aws:policy/service-role/AmazonEC2ContainerServiceAutoscaleRole
       Tags:
         - Key: Name
           Value: !Sub '${ProjectName}-${Environment}-AutoScalingRole'
         - Key: Project
           Value: !Ref ProjectName
+
+  # Auto Scaling Target
+  ApplicationAutoScalingTarget:
+    Type: AWS::ApplicationAutoScaling::ScalableTarget
+    Properties:
+      MaxCapacity: !Ref MaxCapacity
+      MinCapacity: !Ref MinCapacity
+      ResourceId: !Sub 'service/${ProjectName}-${Environment}-Cluster/${ProjectName}-${Environment}-${DeploymentEnvironment}-service'
+      RoleARN: !GetAtt ApplicationAutoScalingRole.Arn
+      ScalableDimension: ecs:service:DesiredCount
+      ServiceNamespace: ecs
+    DependsOn: ECSService
 
   # CPU Scaling Policy
   CPUScalingPolicy:
@@ -220,6 +205,18 @@ Resources:
         ScaleOutCooldown: 300
         ScaleInCooldown: 300
 
+  # SNS Topic
+  SNSTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: !Sub '${ProjectName}-${Environment}-Notifications'
+      DisplayName: !Sub '${ProjectName} ${Environment} Notifications'
+      Tags:
+        - Key: Name
+          Value: !Sub '${ProjectName}-${Environment}-SNS-Topic'
+        - Key: Project
+          Value: !Ref ProjectName
+
   # CloudWatch Alarms
   HighCPUAlarm:
     Type: AWS::CloudWatch::Alarm
@@ -235,13 +232,12 @@ Resources:
       ComparisonOperator: GreaterThanThreshold
       Dimensions:
         - Name: ServiceName
-          Value: !Ref ECSService
+          Value: !GetAtt ECSService.Name
         - Name: ClusterName
           Value: !Sub '${ProjectName}-${Environment}-Cluster'
       AlarmActions:
         - !Ref SNSTopic
 
-  # Low CPU Alarm
   LowCPUAlarm:
     Type: AWS::CloudWatch::Alarm
     Properties:
@@ -256,26 +252,11 @@ Resources:
       ComparisonOperator: LessThanThreshold
       Dimensions:
         - Name: ServiceName
-          Value: !Ref ECSService
+          Value: !GetAtt ECSService.Name
         - Name: ClusterName
           Value: !Sub '${ProjectName}-${Environment}-Cluster'
       AlarmActions:
         - !Ref SNSTopic
-
-  # SNS Topic for Notifications
-  SNSTopic:
-    Type: AWS::SNS::Topic
-    Properties:
-      TopicName: !Sub '${ProjectName}-${Environment}-Notifications'
-      DisplayName: !Sub '${ProjectName} ${Environment} Notifications'
-      Tags:
-        - Key: Name
-          Value: !Sub '${ProjectName}-${Environment}-SNS-Topic'
-        - Key: Project
-          Value: !Ref ProjectName
-
-Conditions:
-  IsBlueEnvironment: !Equals [!Ref DeploymentEnvironment, 'blue']
 
 Outputs:
   ECSServiceName:
