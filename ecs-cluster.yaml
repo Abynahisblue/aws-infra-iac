@@ -107,7 +107,7 @@ Resources:
     Properties:
       ServiceName: !Sub '${ProjectName}-${Environment}-${DeploymentEnvironment}-service'
       Cluster:
-        Fn::ImportValue: !Sub '${ProjectName}-${Environment}-${DeploymentEnvironment}-ECS-Cluster-ARN'
+        Fn::ImportValue: !Sub '${ProjectName}-${Environment}-ECS-Cluster-ARN'
       TaskDefinition: !Ref ECSTaskDefinition
       DesiredCount: !Ref DesiredCount
       LaunchType: FARGATE
