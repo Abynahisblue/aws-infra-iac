@@ -53,7 +53,6 @@ Conditions:
   IsBlueEnvironment: !Equals [!Ref DeploymentEnvironment, 'blue']
 
 Resources:
-  # ECS Task Definition
   ECSTaskDefinition:
     Type: AWS::ECS::TaskDefinition
     Properties:
@@ -92,7 +91,7 @@ Resources:
           HealthCheck:
             Command:
               - CMD-SHELL
-              - !Sub 'curl -f http://localhost:${ContainerPort}/health || exit 1'
+              - curl -f http://localhost:8080/health || exit 1
             Interval: 30
             Timeout: 5
             Retries: 3
@@ -103,7 +102,6 @@ Resources:
         - Key: Project
           Value: !Ref ProjectName
 
-  # ECS Service
   ECSService:
     Type: AWS::ECS::Service
     Properties:
@@ -130,7 +128,7 @@ Resources:
           ContainerPort: !Ref ContainerPort
       DeploymentConfiguration:
         MaximumPercent: 200
-        MinimumHealthyPercent: 100
+        MinimumHealthyPercent: 50
         DeploymentCircuitBreaker:
           Enable: true
           Rollback: true
@@ -145,7 +143,6 @@ Resources:
         - Key: DeploymentType
           Value: !Ref DeploymentEnvironment
 
-  # IAM Role for Auto Scaling
   ApplicationAutoScalingRole:
     Type: AWS::IAM::Role
     Properties:
@@ -165,7 +162,6 @@ Resources:
         - Key: Project
           Value: !Ref ProjectName
 
-  # Auto Scaling Target
   ApplicationAutoScalingTarget:
     Type: AWS::ApplicationAutoScaling::ScalableTarget
     Properties:
@@ -177,7 +173,6 @@ Resources:
       ServiceNamespace: ecs
     DependsOn: ECSService
 
-  # CPU Scaling Policy
   CPUScalingPolicy:
     Type: AWS::ApplicationAutoScaling::ScalingPolicy
     Properties:
@@ -191,7 +186,6 @@ Resources:
         ScaleOutCooldown: 300
         ScaleInCooldown: 300
 
-  # Memory Scaling Policy
   MemoryScalingPolicy:
     Type: AWS::ApplicationAutoScaling::ScalingPolicy
     Properties:
@@ -205,7 +199,6 @@ Resources:
         ScaleOutCooldown: 300
         ScaleInCooldown: 300
 
-  # SNS Topic
   SNSTopic:
     Type: AWS::SNS::Topic
     Properties:
@@ -217,7 +210,6 @@ Resources:
         - Key: Project
           Value: !Ref ProjectName
 
-  # CloudWatch Alarms
   HighCPUAlarm:
     Type: AWS::CloudWatch::Alarm
     Properties:
@@ -232,7 +224,7 @@ Resources:
       ComparisonOperator: GreaterThanThreshold
       Dimensions:
         - Name: ServiceName
-          Value: !GetAtt ECSService.Name
+          Value: !Ref ECSService
         - Name: ClusterName
           Value: !Sub '${ProjectName}-${Environment}-Cluster'
       AlarmActions:
@@ -252,7 +244,7 @@ Resources:
       ComparisonOperator: LessThanThreshold
       Dimensions:
         - Name: ServiceName
-          Value: !GetAtt ECSService.Name
+          Value: !Ref ECSService
         - Name: ClusterName
           Value: !Sub '${ProjectName}-${Environment}-Cluster'
       AlarmActions:
