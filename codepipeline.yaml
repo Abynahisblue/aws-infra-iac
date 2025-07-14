@@ -282,7 +282,7 @@ Resources:
         DeploymentReadyOption:
           ActionOnTimeout: CONTINUE_DEPLOYMENT
         GreenFleetProvisioningOption:
-          Action: COPY_AUTO_SCALING_GROUP
+          Action: DISCOVER_EXISTING
       LoadBalancerInfo:
         TargetGroupInfoList:
           - Name: !Sub '${ProjectName}-${Environment}-Blue-TG'
