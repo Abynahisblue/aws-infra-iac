@@ -51,6 +51,7 @@ Parameters:
 
 Conditions:
   IsBlueEnvironment: !Equals [!Ref DeploymentEnvironment, 'blue']
+  IsGreenEnvironment: !Equals [!Ref DeploymentEnvironment, 'green']
 
 Resources:
   ECSTaskDefinition:
@@ -189,7 +190,7 @@ Resources:
   MemoryScalingPolicy:
     Type: AWS::ApplicationAutoScaling::ScalingPolicy
     Properties:
-      PolicyName: !Sub '${ProjectName}-${Environment}${DeploymentEnvironment}--MemoryScalingPolicy'
+      PolicyName: !Sub '${ProjectName}-${Environment}-${DeploymentEnvironment}-MemoryScalingPolicy'
       PolicyType: TargetTrackingScaling
       ScalingTargetId: !Ref ApplicationAutoScalingTarget
       TargetTrackingScalingPolicyConfiguration:
@@ -226,14 +227,14 @@ Resources:
         - Name: ServiceName
           Value: !Ref ECSService
         - Name: ClusterName
-          Value: !Sub '${ProjectName}-${Environment}-${DeploymentEnvironment}-Cluster'
+          Value: !Sub '${ProjectName}-${Environment}-Cluster'
       AlarmActions:
         - !Ref SNSTopic
 
   LowCPUAlarm:
     Type: AWS::CloudWatch::Alarm
     Properties:
-      AlarmName: !Sub '${ProjectName}-${Environment}-LowCPU'
+      AlarmName: !Sub '${ProjectName}-${Environment}-${DeploymentEnvironment}-LowCPU'
       AlarmDescription: 'Low CPU utilization alarm'
       MetricName: CPUUtilization
       Namespace: AWS/ECS
@@ -246,13 +247,13 @@ Resources:
         - Name: ServiceName
           Value: !Ref ECSService
         - Name: ClusterName
-          Value: !Sub '${ProjectName}-${Environment}-${DeploymentEnvironment}-Cluster'
+          Value: !Sub '${ProjectName}-${Environment}-Cluster'
       AlarmActions:
         - !Ref SNSTopic
 
   GreenListenerRule:
     Type: AWS::ElasticLoadBalancingV2::ListenerRule
-    Condition: !Not [!Equals [!Ref DeploymentEnvironment, 'blue']]
+    Condition: IsGreenEnvironment
     Properties:
       ListenerArn:
         Fn::ImportValue: !Sub '${ProjectName}-${Environment}-ALB-Listener-ARN'
