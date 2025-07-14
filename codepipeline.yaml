@@ -1,4 +1,4 @@
-AWSTemplateFormatVersion: '2010-09-09'
+AWSTemplateFormatVersion: '2010-09-0AWSTemplateFormatVersion: '2010-09-09'
 Description: 'CodePipeline for Blue/Green Deployment with ECR Integration'
 
 Parameters:
@@ -30,8 +30,12 @@ Parameters:
     Type: String
     Description: 'AWS Secrets Manager secret name containing GitHub token'
 
+  ContainerPort:
+    Type: Number
+    Default: 80
+    Description: 'Port your ECS container listens on'
+
 Resources:
-  # S3 Bucket for CodePipeline Artifacts
   CodePipelineArtifactsBucket:
     Type: AWS::S3::Bucket
     Properties:
@@ -58,7 +62,6 @@ Resources:
         - Key: Project
           Value: !Ref ProjectName
 
-  # CodeBuild Service Role
   CodeBuildServiceRole:
     Type: AWS::IAM::Role
     Properties:
@@ -103,7 +106,6 @@ Resources:
         - Key: Project
           Value: !Ref ProjectName
 
-  # CodePipeline Service Role
   CodePipelineServiceRole:
     Type: AWS::IAM::Role
     Properties:
@@ -167,7 +169,6 @@ Resources:
         - Key: Project
           Value: !Ref ProjectName
 
-  # CodeDeploy Service Role
   CodeDeployServiceRole:
     Type: AWS::IAM::Role
     Properties:
