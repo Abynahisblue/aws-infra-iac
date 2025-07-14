@@ -129,9 +129,6 @@ Resources:
             - Fn::ImportValue: !Sub '${ProjectName}-${Environment}-Green-TG-ARN'
           ContainerName: !Sub '${ProjectName}-${Environment}-container'
           ContainerPort: !Ref ContainerPort
-      DeploymentConfiguration:
-        MaximumPercent: 200
-        MinimumHealthyPercent: 50
       EnableExecuteCommand: true
       Tags:
         - Key: Name

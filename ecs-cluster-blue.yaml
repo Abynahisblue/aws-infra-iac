@@ -1,0 +1,272 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'ECS Service with Auto Scaling and Blue/Green Deployment Support'
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: 'webapp'
+    Description: 'Name of the project for resource naming'
+
+  Environment:
+    Type: String
+    Default: 'prod'
+    AllowedValues: ['dev', 'staging', 'prod']
+    Description: 'Environment name'
+
+  ContainerImage:
+    Type: String
+    Description: 'ECR Container Image URI'
+    Default: 'nginx:latest'
+
+  ContainerPort:
+    Type: Number
+    Default: 8080
+    Description: 'Port on which the container listens'
+
+  DesiredCount:
+    Type: Number
+    Default: 0
+    Description: 'Desired number of tasks'
+
+  MinCapacity:
+    Type: Number
+    Default: 2
+    Description: 'Minimum number of tasks'
+
+  MaxCapacity:
+    Type: Number
+    Default: 10
+    Description: 'Maximum number of tasks'
+
+  TargetCPUUtilization:
+    Type: Number
+    Default: 50
+    Description: 'Target CPU utilization for auto scaling'
+
+  DeploymentEnvironment:
+    Type: String
+    Default: 'blue'
+    AllowedValues: ['blue', 'green']
+    Description: 'Deployment environment (blue or green)'
+
+Conditions:
+  IsBlueEnvironment: !Equals [!Ref DeploymentEnvironment, 'blue']
+
+Resources:
+  ECSTaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: !Sub '${ProjectName}-${Environment}-task'
+      NetworkMode: awsvpc
+      RequiresCompatibilities:
+        - FARGATE
+      Cpu: '512'
+      Memory: '1024'
+      ExecutionRoleArn:
+        Fn::ImportValue: !Sub '${ProjectName}-${Environment}-ECSTaskExecutionRole-ARN'
+      TaskRoleArn:
+        Fn::ImportValue: !Sub '${ProjectName}-${Environment}-ECSTaskRole-ARN'
+      ContainerDefinitions:
+        - Name: !Sub '${ProjectName}-${Environment}-container'
+          Image: !Ref ContainerImage
+          PortMappings:
+            - ContainerPort: !Ref ContainerPort
+              Protocol: tcp
+          Environment:
+            - Name: AWS_REGION
+              Value: !Ref AWS::Region
+            - Name: S3_BUCKET_NAME
+              Value:
+                Fn::ImportValue: !Sub '${ProjectName}-${Environment}-ImageBucket-Name'
+            - Name: ENVIRONMENT
+              Value: !Ref Environment
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group:
+                Fn::ImportValue: !Sub '${ProjectName}-${Environment}-ECS-LogGroup-Name'
+              awslogs-region: !Ref AWS::Region
+              awslogs-stream-prefix: ecs
+          Essential: true
+          HealthCheck:
+            Command:
+              - CMD-SHELL
+              - curl -f http://localhost:8080/ || exit 1
+            Interval: 30
+            Timeout: 5
+            Retries: 3
+            StartPeriod: 60
+      Tags:
+        - Key: Name
+          Value: !Sub '${ProjectName}-${Environment}-TaskDefinition'
+        - Key: Project
+          Value: !Ref ProjectName
+
+  ECSService:
+    Type: AWS::ECS::Service
+    Properties:
+      ServiceName: !Sub '${ProjectName}-${Environment}-${DeploymentEnvironment}-service'
+      Cluster:
+        Fn::ImportValue: !Sub '${ProjectName}-${Environment}-ECS-Cluster-ARN'
+      TaskDefinition: !Ref ECSTaskDefinition
+      DesiredCount: !Ref DesiredCount
+      LaunchType: FARGATE
+      DeploymentController:
+        Type: CODE_DEPLOY
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          SecurityGroups:
+            - Fn::ImportValue: !Sub '${ProjectName}-${Environment}-ECS-SG-ID'
+          Subnets:
+            - Fn::ImportValue: !Sub '${ProjectName}-${Environment}-PrivateSubnet1-ID'
+            - Fn::ImportValue: !Sub '${ProjectName}-${Environment}-PrivateSubnet2-ID'
+          AssignPublicIp: DISABLED
+      LoadBalancers:
+        - TargetGroupArn: !If
+            - IsBlueEnvironment
+            - Fn::ImportValue: !Sub '${ProjectName}-${Environment}-Blue-TG-ARN'
+            - Fn::ImportValue: !Sub '${ProjectName}-${Environment}-Green-TG-ARN'
+          ContainerName: !Sub '${ProjectName}-${Environment}-container'
+          ContainerPort: !Ref ContainerPort
+      EnableExecuteCommand: true
+      Tags:
+        - Key: Name
+          Value: !Sub '${ProjectName}-${Environment}-${DeploymentEnvironment}-Service'
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: DeploymentType
+          Value: !Ref DeploymentEnvironment
+
+  ApplicationAutoScalingRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${ProjectName}-${Environment}-AutoScalingRole'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: application-autoscaling.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonEC2ContainerServiceAutoscaleRole
+      Tags:
+        - Key: Name
+          Value: !Sub '${ProjectName}-${Environment}-AutoScalingRole'
+        - Key: Project
+          Value: !Ref ProjectName
+
+  ApplicationAutoScalingTarget:
+    Type: AWS::ApplicationAutoScaling::ScalableTarget
+    Properties:
+      MaxCapacity: !Ref MaxCapacity
+      MinCapacity: !Ref MinCapacity
+      ResourceId: !Sub 'service/${ProjectName}-${Environment}-Cluster/${ProjectName}-${Environment}-${DeploymentEnvironment}-service'
+      RoleARN: !GetAtt ApplicationAutoScalingRole.Arn
+      ScalableDimension: ecs:service:DesiredCount
+      ServiceNamespace: ecs
+    DependsOn: ECSService
+
+  CPUScalingPolicy:
+    Type: AWS::ApplicationAutoScaling::ScalingPolicy
+    Properties:
+      PolicyName: !Sub '${ProjectName}-${Environment}-CPUScalingPolicy'
+      PolicyType: TargetTrackingScaling
+      ScalingTargetId: !Ref ApplicationAutoScalingTarget
+      TargetTrackingScalingPolicyConfiguration:
+        TargetValue: !Ref TargetCPUUtilization
+        PredefinedMetricSpecification:
+          PredefinedMetricType: ECSServiceAverageCPUUtilization
+        ScaleOutCooldown: 300
+        ScaleInCooldown: 300
+
+  MemoryScalingPolicy:
+    Type: AWS::ApplicationAutoScaling::ScalingPolicy
+    Properties:
+      PolicyName: !Sub '${ProjectName}-${Environment}-MemoryScalingPolicy'
+      PolicyType: TargetTrackingScaling
+      ScalingTargetId: !Ref ApplicationAutoScalingTarget
+      TargetTrackingScalingPolicyConfiguration:
+        TargetValue: 70
+        PredefinedMetricSpecification:
+          PredefinedMetricType: ECSServiceAverageMemoryUtilization
+        ScaleOutCooldown: 300
+        ScaleInCooldown: 300
+
+  SNSTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: !Sub '${ProjectName}-${Environment}-Notifications'
+      DisplayName: !Sub '${ProjectName} ${Environment} Notifications'
+      Tags:
+        - Key: Name
+          Value: !Sub '${ProjectName}-${Environment}-SNS-Topic'
+        - Key: Project
+          Value: !Ref ProjectName
+
+  HighCPUAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub '${ProjectName}-${Environment}-HighCPU'
+      AlarmDescription: 'High CPU utilization alarm'
+      MetricName: CPUUtilization
+      Namespace: AWS/ECS
+      Statistic: Average
+      Period: 300
+      EvaluationPeriods: 2
+      Threshold: 80
+      ComparisonOperator: GreaterThanThreshold
+      Dimensions:
+        - Name: ServiceName
+          Value: !Ref ECSService
+        - Name: ClusterName
+          Value: !Sub '${ProjectName}-${Environment}-Cluster'
+      AlarmActions:
+        - !Ref SNSTopic
+
+  LowCPUAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub '${ProjectName}-${Environment}-LowCPU'
+      AlarmDescription: 'Low CPU utilization alarm'
+      MetricName: CPUUtilization
+      Namespace: AWS/ECS
+      Statistic: Average
+      Period: 300
+      EvaluationPeriods: 2
+      Threshold: 10
+      ComparisonOperator: LessThanThreshold
+      Dimensions:
+        - Name: ServiceName
+          Value: !Ref ECSService
+        - Name: ClusterName
+          Value: !Sub '${ProjectName}-${Environment}-Cluster'
+      AlarmActions:
+        - !Ref SNSTopic
+
+Outputs:
+  ECSServiceName:
+    Description: 'ECS Service Name'
+    Value: !Ref ECSService
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-${DeploymentEnvironment}-Service-Name'
+
+  ECSTaskDefinitionArn:
+    Description: 'ECS Task Definition ARN'
+    Value: !Ref ECSTaskDefinition
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-${DeploymentEnvironment}-TaskDefinition-ARN'
+
+  AutoScalingTargetId:
+    Description: 'Application Auto Scaling Target ID'
+    Value: !Ref ApplicationAutoScalingTarget
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-${DeploymentEnvironment}-AutoScalingTarget-ID'
+
+  SNSTopicArn:
+    Description: 'SNS Topic ARN for notifications'
+    Value: !Ref SNSTopic
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-SNS-Topic-ARN'
