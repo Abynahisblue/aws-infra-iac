@@ -125,7 +125,7 @@ Resources:
                   - s3:GetObject
                   - s3:PutObject
                   - s3:GetObjectVersion
-                Resource: !Sub '${CodePipelineArtifactsBucket}/*'
+                Resource: !Sub '${CodePipelineArtifactsBucket.Arn}/*'
               - Effect: Allow
                 Action:
                   - s3:ListBucket
