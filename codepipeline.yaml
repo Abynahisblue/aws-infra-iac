@@ -283,10 +283,6 @@ Resources:
           ActionOnTimeout: CONTINUE_DEPLOYMENT
         GreenFleetProvisioningOption:
           Action: DISCOVER_EXISTING
-      LoadBalancerInfo:
-        TargetGroupInfoList:
-          - Name: !Sub '${ProjectName}-${Environment}-Blue-TG'
-          - Name: !Sub '${ProjectName}-${Environment}-Green-TG' # You also need to add the Green Target Group here
       ECSServices:
         - ServiceName: !Sub '${ProjectName}-${Environment}-blue-service'
           ClusterName: !Sub '${ProjectName}-${Environment}-Cluster'
