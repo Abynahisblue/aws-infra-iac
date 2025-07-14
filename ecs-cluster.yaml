@@ -46,15 +46,11 @@ Parameters:
   DeploymentEnvironment:
     Type: String
     Default: 'blue'
-    AllowedValues:
-      - blue
-      - green
+    AllowedValues: ['blue', 'green']
     Description: 'Deployment environment (blue or green)'
 
-
 Conditions:
-  IsBlueEnvironment: !Equals [ !Ref DeploymentEnvironment, 'blue' ]
-  IsGreenEnvironment: !Equals [ !Ref DeploymentEnvironment, 'green' ]
+  IsBlueEnvironment: !Equals [!Ref DeploymentEnvironment, 'blue']
 
 Resources:
   ECSTaskDefinition:
@@ -256,7 +252,7 @@ Resources:
 
   GreenListenerRule:
     Type: AWS::ElasticLoadBalancingV2::ListenerRule
-    Condition: IsGreenEnvironment
+    Condition: !Not [!Equals [!Ref DeploymentEnvironment, 'blue']]
     Properties:
       ListenerArn:
         Fn::ImportValue: !Sub '${ProjectName}-${Environment}-ALB-Listener-ARN'
