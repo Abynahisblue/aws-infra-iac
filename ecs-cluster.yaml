@@ -135,7 +135,7 @@ Resources:
       EnableExecuteCommand: true
       Tags:
         - Key: Name
-          Value: !Sub '${ProjectName}-${Environment}-${DeploymentEnvironment}-Service'
+          Value: !Sub '${ProjectName}-${Environment}-Service'
         - Key: Project
           Value: !Ref ProjectName
         - Key: Environment
