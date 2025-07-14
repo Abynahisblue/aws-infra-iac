@@ -1,0 +1,449 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'CodePipeline for Blue/Green Deployment with ECR Integration'
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: 'webapp'
+    Description: 'Name of the project for resource naming'
+
+  Environment:
+    Type: String
+    Default: 'prod'
+    AllowedValues: ['dev', 'staging', 'prod']
+    Description: 'Environment name'
+
+  GitHubOwner:
+    Type: String
+    Description: 'GitHub repository owner'
+
+  GitHubRepo:
+    Type: String
+    Description: 'GitHub repository name'
+
+  GitHubBranch:
+    Type: String
+    Default: 'main'
+    Description: 'GitHub branch name'
+
+  GitHubTokenSecret:
+    Type: String
+    Description: 'AWS Secrets Manager secret name containing GitHub token'
+
+Resources:
+  # S3 Bucket for CodePipeline Artifacts
+  CodePipelineArtifactsBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub '${ProjectName}-${Environment}-codepipeline-artifacts-${AWS::AccountId}-${AWS::Region}'
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      VersioningConfiguration:
+        Status: Enabled
+      LifecycleConfiguration:
+        Rules:
+          - Id: DeleteOldArtifacts
+            Status: Enabled
+            ExpirationInDays: 30
+      Tags:
+        - Key: Name
+          Value: !Sub '${ProjectName}-${Environment}-CodePipeline-Artifacts'
+        - Key: Project
+          Value: !Ref ProjectName
+
+  # CodeBuild Service Role
+  CodeBuildServiceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${ProjectName}-${Environment}-CodeBuild-Role'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: codebuild.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: CodeBuildPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: !Sub 'arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/codebuild/${ProjectName}-${Environment}-*'
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                Resource: !Sub '${CodePipelineArtifactsBucket}/*'
+              - Effect: Allow
+                Action:
+                  - ecr:GetAuthorizationToken
+                  - ecr:BatchCheckLayerAvailability
+                  - ecr:GetDownloadUrlForLayer
+                  - ecr:BatchGetImage
+                  - ecr:InitiateLayerUpload
+                  - ecr:UploadLayerPart
+                  - ecr:CompleteLayerUpload
+                  - ecr:PutImage
+                Resource: '*'
+      Tags:
+        - Key: Name
+          Value: !Sub '${ProjectName}-${Environment}-CodeBuild-Role'
+        - Key: Project
+          Value: !Ref ProjectName
+
+  # CodePipeline Service Role
+  CodePipelineServiceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${ProjectName}-${Environment}-CodePipeline-Role'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: codepipeline.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: CodePipelinePolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                  - s3:GetObjectVersion
+                Resource: !Sub '${CodePipelineArtifactsBucket}/*'
+              - Effect: Allow
+                Action:
+                  - s3:ListBucket
+                Resource: !Ref CodePipelineArtifactsBucket
+              - Effect: Allow
+                Action:
+                  - codebuild:BatchGetBuilds
+                  - codebuild:StartBuild
+                Resource: !GetAtt CodeBuildProject.Arn
+              - Effect: Allow
+                Action:
+                  - codedeploy:CreateDeployment
+                  - codedeploy:GetApplication
+                  - codedeploy:GetApplicationRevision
+                  - codedeploy:GetDeployment
+                  - codedeploy:GetDeploymentConfig
+                  - codedeploy:RegisterApplicationRevision
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - ecs:DescribeServices
+                  - ecs:DescribeTaskDefinition
+                  - ecs:DescribeTasks
+                  - ecs:ListTasks
+                  - ecs:RegisterTaskDefinition
+                  - ecs:UpdateService
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - iam:PassRole
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - secretsmanager:GetSecretValue
+                Resource: !Sub 'arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:${GitHubTokenSecret}*'
+      Tags:
+        - Key: Name
+          Value: !Sub '${ProjectName}-${Environment}-CodePipeline-Role'
+        - Key: Project
+          Value: !Ref ProjectName
+
+  # CodeDeploy Service Role
+  CodeDeployServiceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${ProjectName}-${Environment}-CodeDeploy-Role'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: codedeploy.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AWSCodeDeployRoleForECS
+      Tags:
+        - Key: Name
+          Value: !Sub '${ProjectName}-${Environment}-CodeDeploy-Role'
+        - Key: Project
+          Value: !Ref ProjectName
+
+  # CodeBuild Project
+  CodeBuildProject:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Name: !Sub '${ProjectName}-${Environment}-build'
+      Description: !Sub 'Build project for ${ProjectName} ${Environment}'
+      ServiceRole: !GetAtt CodeBuildServiceRole.Arn
+      Artifacts:
+        Type: CODEPIPELINE
+      Environment:
+        Type: LINUX_CONTAINER
+        ComputeType: BUILD_GENERAL1_MEDIUM
+        Image: aws/codebuild/standard:5.0
+        PrivilegedMode: true
+        EnvironmentVariables:
+          - Name: AWS_DEFAULT_REGION
+            Value: !Ref AWS::Region
+          - Name: AWS_ACCOUNT_ID
+            Value: !Ref AWS::AccountId
+          - Name: ECR_REPOSITORY_URI
+            Value:
+              Fn::ImportValue: !Sub '${ProjectName}-${Environment}-ECR-URI'
+          - Name: IMAGE_TAG
+            Value: latest
+          - Name: PROJECT_NAME
+            Value: !Ref ProjectName
+          - Name: ENVIRONMENT
+            Value: !Ref Environment
+      Source:
+        Type: CODEPIPELINE
+        BuildSpec: |
+          version: 0.2
+          phases:
+            pre_build:
+              commands:
+                - echo Logging in to Amazon ECR...
+                - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com
+                - COMMIT_HASH=$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | cut -c 1-7)
+                - IMAGE_TAG=${COMMIT_HASH:=latest}
+            build:
+              commands:
+                - echo Build started on `date`
+                - echo Building the Docker image...
+                - docker build -t $ECR_REPOSITORY_URI:latest .
+                - docker tag $ECR_REPOSITORY_URI:latest $ECR_REPOSITORY_URI:$IMAGE_TAG
+            post_build:
+              commands:
+                - echo Build completed on `date`
+                - echo Pushing the Docker images...
+                - docker push $ECR_REPOSITORY_URI:latest
+                - docker push $ECR_REPOSITORY_URI:$IMAGE_TAG
+                - echo Writing image definitions file...
+                - printf '[{"name":"'$PROJECT_NAME'-'$ENVIRONMENT'-container","imageUri":"%s"}]' $ECR_REPOSITORY_URI:$IMAGE_TAG > imagedefinitions.json
+          artifacts:
+            files:
+              - imagedefinitions.json
+              - appspec.yaml
+              - taskdef.json
+      Tags:
+        - Key: Name
+          Value: !Sub '${ProjectName}-${Environment}-CodeBuild'
+        - Key: Project
+          Value: !Ref ProjectName
+
+  # CodeDeploy Application
+  CodeDeployApplication:
+    Type: AWS::CodeDeploy::Application
+    Properties:
+      ApplicationName: !Sub '${ProjectName}-${Environment}-app'
+      ComputePlatform: ECS
+      Tags:
+        - Key: Name
+          Value: !Sub '${ProjectName}-${Environment}-CodeDeploy-App'
+        - Key: Project
+          Value: !Ref ProjectName
+
+  # CodeDeploy Deployment Group
+  CodeDeployDeploymentGroup:
+    Type: AWS::CodeDeploy::DeploymentGroup
+    Properties:
+      ApplicationName: !Ref CodeDeployApplication
+      DeploymentGroupName: !Sub '${ProjectName}-${Environment}-deployment-group'
+      ServiceRoleArn: !GetAtt CodeDeployServiceRole.Arn
+      DeploymentConfigName: CodeDeployDefault.ECSAllAtOnceBlueGreen
+      BlueGreenDeploymentConfiguration:
+        TerminateBlueInstancesOnDeploymentSuccess:
+          Action: TERMINATE
+          TerminationWaitTimeInMinutes: 5
+        DeploymentReadyOption:
+          ActionOnTimeout: CONTINUE_DEPLOYMENT
+        GreenFleetProvisioningOption:
+          Action: COPY_AUTO_SCALING_GROUP
+      LoadBalancerInfo:
+        TargetGroupInfoList:
+          - Name: !Sub '${ProjectName}-${Environment}-Blue-TG'
+      ECSServices:
+        - ServiceName: !Sub '${ProjectName}-${Environment}-blue-service'
+          ClusterName: !Sub '${ProjectName}-${Environment}-Cluster'
+      Tags:
+        - Key: Name
+          Value: !Sub '${ProjectName}-${Environment}-CodeDeploy-DeploymentGroup'
+        - Key: Project
+          Value: !Ref ProjectName
+
+  # EventBridge Rule for ECR Push
+  ECRPushEventRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: !Sub '${ProjectName}-${Environment}-ECR-Push-Rule'
+      Description: 'Trigger pipeline when new image is pushed to ECR'
+      EventPattern:
+        source:
+          - aws.ecr
+        detail-type:
+          - ECR Image Action
+        detail:
+          action-type:
+            - PUSH
+          result:
+            - SUCCESS
+          repository-name:
+            - !Sub '${ProjectName}-${Environment}-app'
+      State: ENABLED
+      Targets:
+        - Arn: !Sub 'arn:aws:codepipeline:${AWS::Region}:${AWS::AccountId}:pipeline/${CodePipeline}'
+          Id: ECRPushTarget
+          RoleArn: !GetAtt EventBridgeRole.Arn
+
+  # EventBridge Role
+  EventBridgeRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${ProjectName}-${Environment}-EventBridge-Role'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: events.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: EventBridgePolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - codepipeline:StartPipelineExecution
+                Resource: !Sub 'arn:aws:codepipeline:${AWS::Region}:${AWS::AccountId}:pipeline/${ProjectName}-${Environment}-pipeline'
+      Tags:
+        - Key: Name
+          Value: !Sub '${ProjectName}-${Environment}-EventBridge-Role'
+        - Key: Project
+          Value: !Ref ProjectName
+
+  # CodePipeline
+  CodePipeline:
+    Type: AWS::CodePipeline::Pipeline
+    Properties:
+      Name: !Sub '${ProjectName}-${Environment}-pipeline'
+      RoleArn: !GetAtt CodePipelineServiceRole.Arn
+      ArtifactStore:
+        Type: S3
+        Location: !Ref CodePipelineArtifactsBucket
+      Stages:
+        - Name: Source
+          Actions:
+            - Name: SourceAction
+              ActionTypeId:
+                Category: Source
+                Owner: ThirdParty
+                Provider: GitHub
+                Version: '1'
+              Configuration:
+                Owner: !Ref GitHubOwner
+                Repo: !Ref GitHubRepo
+                Branch: !Ref GitHubBranch
+                OAuthToken: !Sub '{{resolve:secretsmanager:${GitHubTokenSecret}:SecretString:token}}'
+                PollForSourceChanges: false
+              OutputArtifacts:
+                - Name: SourceOutput
+        - Name: Build
+          Actions:
+            - Name: BuildAction
+              ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: '1'
+              Configuration:
+                ProjectName: !Ref CodeBuildProject
+              InputArtifacts:
+                - Name: SourceOutput
+              OutputArtifacts:
+                - Name: BuildOutput
+        - Name: Deploy
+          Actions:
+            - Name: DeployAction
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Provider: CodeDeployToECS
+                Version: '1'
+              Configuration:
+                ApplicationName: !Ref CodeDeployApplication
+                DeploymentGroupName: !Ref CodeDeployDeploymentGroup
+                TaskDefinitionTemplateArtifact: BuildOutput
+                TaskDefinitionTemplatePath: taskdef.json
+                AppSpecTemplateArtifact: BuildOutput
+                AppSpecTemplatePath: appspec.yaml
+                Image1ArtifactName: BuildOutput
+                Image1ContainerName: IMAGE1_NAME
+              InputArtifacts:
+                - Name: BuildOutput
+              Region: !Ref AWS::Region
+      Tags:
+        - Key: Name
+          Value: !Sub '${ProjectName}-${Environment}-CodePipeline'
+        - Key: Project
+          Value: !Ref ProjectName
+
+  # GitHub Webhook
+  GitHubWebhook:
+    Type: AWS::CodePipeline::Webhook
+    Properties:
+      Authentication: GITHUB_HMAC
+      AuthenticationConfiguration:
+        SecretToken: !Sub '{{resolve:secretsmanager:${GitHubTokenSecret}:SecretString:token}}'
+      Filters:
+        - JsonPath: $.ref
+          MatchEquals: refs/heads/{Branch}
+      TargetPipeline: !Ref CodePipeline
+      TargetAction: SourceAction
+      TargetPipelineVersion: !GetAtt CodePipeline.Version
+      RegisterWithThirdParty: true
+
+Outputs:
+  CodePipelineName:
+    Description: 'CodePipeline Name'
+    Value: !Ref CodePipeline
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-CodePipeline-Name'
+
+  CodeBuildProjectName:
+    Description: 'CodeBuild Project Name'
+    Value: !Ref CodeBuildProject
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-CodeBuild-Project-Name'
+
+  CodeDeployApplicationName:
+    Description: 'CodeDeploy Application Name'
+    Value: !Ref CodeDeployApplication
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-CodeDeploy-App-Name'
+
+  ArtifactsBucketName:
+    Description: 'S3 Artifacts Bucket Name'
+    Value: !Ref CodePipelineArtifactsBucket
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-Artifacts-Bucket-Name'
