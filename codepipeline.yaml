@@ -274,13 +274,10 @@ Resources:
       ApplicationName: !Ref CodeDeployApplication
       DeploymentGroupName: !Sub '${ProjectName}-${Environment}-deployment-group'
       ServiceRoleArn: !GetAtt CodeDeployServiceRole.Arn
-
       DeploymentStyle:
         DeploymentType: BLUE_GREEN
         DeploymentOption: WITH_TRAFFIC_CONTROL
-
       DeploymentConfigName: CodeDeployDefault.ECSLinear10PercentEvery1Minute
-
       BlueGreenDeploymentConfiguration:
         TerminateBlueInstancesOnDeploymentSuccess:
           Action: TERMINATE
@@ -288,23 +285,14 @@ Resources:
         DeploymentReadyOption:
           ActionOnTimeout: CONTINUE_DEPLOYMENT
         GreenFleetProvisioningOption:
-          Action: DISCOVER_EXISTING
-
+          Action: COPY_AUTO_SCALING_GROUP
       LoadBalancerInfo:
-        TargetGroupPairInfoList:
-          - TargetGroups:
-              - Name: !Sub '${ProjectName}-${Environment}-Blue-TG'
-              - Name: !Sub '${ProjectName}-${Environment}-Green-TG'
-            ProdTrafficRoute:
-              ListenerArns:
-                - Fn::ImportValue: !Sub '${ProjectName}-${Environment}-Listener-ARN'
-            ContainerName: !Sub '${ProjectName}-${Environment}-container'
-            ContainerPort: !Ref ContainerPort
-
-      ECSService:
+        TargetGroupInfoList:
+          - Name: !Sub '${ProjectName}-${Environment}-Blue-TG'
+          - Name: !Sub '${ProjectName}-${Environment}-Green-TG'
+      ECSServices:
         - ServiceName: !Sub '${ProjectName}-${Environment}-blue-service'
           ClusterName: !Sub '${ProjectName}-${Environment}-Cluster'
-
       Tags:
         - Key: Name
           Value: !Sub '${ProjectName}-${Environment}-CodeDeploy-DeploymentGroup'
