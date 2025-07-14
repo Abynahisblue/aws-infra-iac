@@ -51,6 +51,8 @@ Parameters:
 
 Conditions:
   IsBlueEnvironment: !Equals [!Ref DeploymentEnvironment, 'blue']
+  IsGreenEnvironment: !Equals [!Ref DeploymentEnvironment, 'green']
+
 
 Resources:
   ECSTaskDefinition:
