@@ -45,13 +45,12 @@ Parameters:
 
   DeploymentEnvironment:
     Type: String
-    Default: 'green'
+    Default: 'blue'
     AllowedValues: ['blue', 'green']
     Description: 'Deployment environment (blue or green)'
 
 Conditions:
   IsBlueEnvironment: !Equals [!Ref DeploymentEnvironment, 'blue']
-  IsGreenEnvironment: !Equals [!Ref DeploymentEnvironment, 'green']
 
 Resources:
   ECSTaskDefinition:
@@ -99,7 +98,7 @@ Resources:
             StartPeriod: 60
       Tags:
         - Key: Name
-          Value: !Sub '${ProjectName}-${Environment}-${DeploymentEnvironment}-TaskDefinition'
+          Value: !Sub '${ProjectName}-${Environment}-TaskDefinition'
         - Key: Project
           Value: !Ref ProjectName
 
@@ -112,6 +111,8 @@ Resources:
       TaskDefinition: !Ref ECSTaskDefinition
       DesiredCount: !Ref DesiredCount
       LaunchType: FARGATE
+      DeploymentController:
+        Type: CODE_DEPLOY
       NetworkConfiguration:
         AwsvpcConfiguration:
           SecurityGroups:
@@ -147,7 +148,7 @@ Resources:
   ApplicationAutoScalingRole:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: !Sub '${ProjectName}-${Environment}-${DeploymentEnvironment}-AutoScalingRole'
+      RoleName: !Sub '${ProjectName}-${Environment}-AutoScalingRole'
       AssumeRolePolicyDocument:
         Version: '2012-10-17'
         Statement:
@@ -159,7 +160,7 @@ Resources:
         - arn:aws:iam::aws:policy/service-role/AmazonEC2ContainerServiceAutoscaleRole
       Tags:
         - Key: Name
-          Value: !Sub '${ProjectName}-${Environment}-${DeploymentEnvironment}-AutoScalingRole'
+          Value: !Sub '${ProjectName}-${Environment}-AutoScalingRole'
         - Key: Project
           Value: !Ref ProjectName
 
@@ -177,7 +178,7 @@ Resources:
   CPUScalingPolicy:
     Type: AWS::ApplicationAutoScaling::ScalingPolicy
     Properties:
-      PolicyName: !Sub '${ProjectName}-${Environment}-${DeploymentEnvironment}-CPUScalingPolicy'
+      PolicyName: !Sub '${ProjectName}-${Environment}-CPUScalingPolicy'
       PolicyType: TargetTrackingScaling
       ScalingTargetId: !Ref ApplicationAutoScalingTarget
       TargetTrackingScalingPolicyConfiguration:
@@ -190,7 +191,7 @@ Resources:
   MemoryScalingPolicy:
     Type: AWS::ApplicationAutoScaling::ScalingPolicy
     Properties:
-      PolicyName: !Sub '${ProjectName}-${Environment}-${DeploymentEnvironment}-MemoryScalingPolicy'
+      PolicyName: !Sub '${ProjectName}-${Environment}-MemoryScalingPolicy'
       PolicyType: TargetTrackingScaling
       ScalingTargetId: !Ref ApplicationAutoScalingTarget
       TargetTrackingScalingPolicyConfiguration:
@@ -203,18 +204,18 @@ Resources:
   SNSTopic:
     Type: AWS::SNS::Topic
     Properties:
-      TopicName: !Sub '${ProjectName}-${Environment}-${DeploymentEnvironment}-Notifications'
-      DisplayName: !Sub '${ProjectName} ${Environment} ${DeploymentEnvironment} Notifications'
+      TopicName: !Sub '${ProjectName}-${Environment}-Notifications'
+      DisplayName: !Sub '${ProjectName} ${Environment} Notifications'
       Tags:
         - Key: Name
-          Value: !Sub '${ProjectName}-${Environment}-${DeploymentEnvironment}-SNS-Topic'
+          Value: !Sub '${ProjectName}-${Environment}-SNS-Topic'
         - Key: Project
           Value: !Ref ProjectName
 
   HighCPUAlarm:
     Type: AWS::CloudWatch::Alarm
     Properties:
-      AlarmName: !Sub '${ProjectName}-${Environment}-${DeploymentEnvironment}-HighCPU'
+      AlarmName: !Sub '${ProjectName}-${Environment}-HighCPU'
       AlarmDescription: 'High CPU utilization alarm'
       MetricName: CPUUtilization
       Namespace: AWS/ECS
@@ -234,7 +235,7 @@ Resources:
   LowCPUAlarm:
     Type: AWS::CloudWatch::Alarm
     Properties:
-      AlarmName: !Sub '${ProjectName}-${Environment}-${DeploymentEnvironment}-LowCPU'
+      AlarmName: !Sub '${ProjectName}-${Environment}-LowCPU'
       AlarmDescription: 'Low CPU utilization alarm'
       MetricName: CPUUtilization
       Namespace: AWS/ECS
@@ -250,22 +251,6 @@ Resources:
           Value: !Sub '${ProjectName}-${Environment}-Cluster'
       AlarmActions:
         - !Ref SNSTopic
-
-  # Green-specific listener rule for testing
-  GreenListenerRule:
-    Type: AWS::ElasticLoadBalancingV2::ListenerRule
-    Condition: IsGreenEnvironment
-    Properties:
-      ListenerArn:
-        Fn::ImportValue: !Sub '${ProjectName}-${Environment}-ALB-Listener-ARN'
-      Priority: 100
-      Conditions:
-        - Field: path-pattern
-          Values: ['/green*']
-      Actions:
-        - Type: forward
-          TargetGroupArn:
-            Fn::ImportValue: !Sub '${ProjectName}-${Environment}-Green-TG-ARN'
 
 Outputs:
   ECSServiceName:
@@ -290,4 +275,4 @@ Outputs:
     Description: 'SNS Topic ARN for notifications'
     Value: !Ref SNSTopic
     Export:
-      Name: !Sub '${ProjectName}-${Environment}-${DeploymentEnvironment}-SNS-Topic-ARN'
+      Name: !Sub '${ProjectName}-${Environment}-SNS-Topic-ARN'
