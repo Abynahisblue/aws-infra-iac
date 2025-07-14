@@ -399,7 +399,7 @@ Resources:
               Fn::ImportValue: !Sub '${ProjectName}-${Environment}-Blue-TG-Name'
       ECSServices:
         - ServiceName:
-            Fn::ImportValue: !Sub '${ProjectName}-${Environment}-ECS-Service-Name'
+            Fn::ImportValue: !Sub '${ProjectName}-${Environment}-blue-Service-Name'  # Changed to use blue service
           ClusterName:
             Fn::ImportValue: !Sub '${ProjectName}-${Environment}-ECS-Cluster-ARN'  # Changed from -Name to -ARN
       Tags:
