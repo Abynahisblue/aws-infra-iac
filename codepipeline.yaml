@@ -263,34 +263,42 @@ Resources:
         - Key: Project
           Value: !Ref ProjectName
 
-  # CodeDeploy Deployment Group
   CodeDeployDeploymentGroup:
-    Type: AWS::CodeDeploy::DeploymentGroup
-    Properties:
-      ApplicationName: !Ref CodeDeployApplication
-      DeploymentGroupName: !Sub '${ProjectName}-${Environment}-deployment-group'
-      ServiceRoleArn: !GetAtt CodeDeployServiceRole.Arn
-      # Add this required block
-      DeploymentStyle:
-        DeploymentType: BLUE_GREEN
-        DeploymentOption: WITH_TRAFFIC_CONTROL
-      DeploymentConfigName: CodeDeployDefault.ECSLinear10PercentEvery1Minute # Consider changing this as well
-      BlueGreenDeploymentConfiguration:
-        TerminateBlueInstancesOnDeploymentSuccess:
-          Action: TERMINATE
-          TerminationWaitTimeInMinutes: 5
-        DeploymentReadyOption:
-          ActionOnTimeout: CONTINUE_DEPLOYMENT
-        GreenFleetProvisioningOption:
-          Action: DISCOVER_EXISTING
-      ECSServices:
-        - ServiceName: !Sub '${ProjectName}-${Environment}-blue-service'
-          ClusterName: !Sub '${ProjectName}-${Environment}-Cluster'
-      Tags:
-        - Key: Name
-          Value: !Sub '${ProjectName}-${Environment}-CodeDeploy-DeploymentGroup'
-        - Key: Project
-          Value: !Ref ProjectName
+  Type: AWS::CodeDeploy::DeploymentGroup
+  Properties:
+    ApplicationName: !Ref CodeDeployApplication
+    DeploymentGroupName: !Sub '${ProjectName}-${Environment}-deployment-group'
+    ServiceRoleArn: !GetAtt CodeDeployServiceRole.Arn
+    DeploymentStyle:
+      DeploymentType: BLUE_GREEN
+      DeploymentOption: WITH_TRAFFIC_CONTROL
+    DeploymentConfigName: CodeDeployDefault.ECSLinear10PercentEvery1Minute
+    BlueGreenDeploymentConfiguration:
+      TerminateBlueInstancesOnDeploymentSuccess:
+        Action: TERMINATE
+        TerminationWaitTimeInMinutes: 5
+      DeploymentReadyOption:
+        ActionOnTimeout: CONTINUE_DEPLOYMENT
+      GreenFleetProvisioningOption:
+        Action: DISCOVER_EXISTING
+    LoadBalancerInfo:
+      TargetGroupPairInfoList:
+        - ProdTrafficRoute:
+            ListenerArns:
+              - Fn::ImportValue: !Sub '${ProjectName}-${Environment}-Listener-ARN'
+          TargetGroups:
+            - Name: !Sub '${ProjectName}-${Environment}-Blue-TG'
+            - Name: !Sub '${ProjectName}-${Environment}-Green-TG'
+          ContainerName: !Sub '${ProjectName}-${Environment}-container'
+          ContainerPort: !Ref ContainerPort
+    ECSService:
+      - ServiceName: !Sub '${ProjectName}-${Environment}-blue-service'
+        ClusterName: !Sub '${ProjectName}-${Environment}-Cluster'
+    Tags:
+      - Key: Name
+        Value: !Sub '${ProjectName}-${Environment}-CodeDeploy-DeploymentGroup'
+      - Key: Project
+        Value: !Ref ProjectName
 
   # EventBridge Rule for ECR Push
   ECRPushEventRule:
