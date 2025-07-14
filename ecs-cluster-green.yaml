@@ -287,7 +287,8 @@ Outputs:
       Name: !Sub '${ProjectName}-${Environment}-${DeploymentEnvironment}-SNS-Topic-ARN'
 
   ECSServiceNameBase:
-    Description: 'ECS Service Base Name (without color)'
+    Description: 'Base ECS Service Name (without color)'
     Value: !Sub '${ProjectName}-${Environment}-service'
+    Condition: IsBlueEnvironment
     Export:
       Name: !Sub '${ProjectName}-${Environment}-ECS-Service-Name'
