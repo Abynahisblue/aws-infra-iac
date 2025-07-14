@@ -130,10 +130,10 @@ Outputs:
     Description: 'Blue Target Group ARN'
     Value: !Ref BlueTargetGroup
     Export:
-      Name: !Sub '${ProjectName}-${Environment}-Blue-TG-ARN'
+      Name: !Sub '${ProjectName}-${Environment}-Blue-TG-Name'
 
   GreenTargetGroupArn:
     Description: 'Green Target Group ARN'
     Value: !Ref GreenTargetGroup
     Export:
-      Name: !Sub '${ProjectName}-${Environment}-Green-TG-ARN'
+      Name: !Sub '${ProjectName}-${Environment}-Green-TG-Name'

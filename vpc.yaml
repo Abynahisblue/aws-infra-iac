@@ -513,6 +513,12 @@ Outputs:
     Export:
       Name: !Sub '${ProjectName}-${Environment}-ECR-URI'
 
+  ECSClusterName:
+    Description: 'ECS Cluster Name'
+    Value: !Sub '${ProjectName}-${Environment}-Cluster'
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-ECS-Cluster-Name'
+
   ECSClusterArn:
     Description: 'ECS Cluster ARN'
     Value: !Ref ECSCluster
