@@ -250,6 +250,21 @@ Resources:
       AlarmActions:
         - !Ref SNSTopic
 
+  GreenListenerRule:
+    Type: AWS::ElasticLoadBalancingV2::ListenerRule
+    Condition: !Not [!Equals [!Ref DeploymentEnvironment, 'blue']]
+    Properties:
+      ListenerArn:
+        Fn::ImportValue: !Sub '${ProjectName}-${Environment}-ALB-Listener-ARN'
+      Priority: 20
+      Conditions:
+        - Field: path-pattern
+          Values: ['/green*']
+      Actions:
+        - Type: forward
+          TargetGroupArn:
+            Fn::ImportValue: !Sub '${ProjectName}-${Environment}-Green-TG-ARN'
+
 Outputs:
   ECSServiceName:
     Description: 'ECS Service Name'
