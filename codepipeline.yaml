@@ -393,9 +393,15 @@ Resources:
           TerminationWaitTimeInMinutes: 5
         DeploymentReadyOption:
           ActionOnTimeout: CONTINUE_DEPLOYMENT
+      LoadBalancerInfo:
+        TargetGroupInfoList:
+          - Name:
+              Fn::ImportValue: !Sub '${ProjectName}-${Environment}-Blue-TG-Name'
       ECSServices:
-        - ServiceName: !Sub '${ProjectName}-${Environment}-blue-service'
-          ClusterName: !Sub '${ProjectName}-${Environment}-Cluster'
+        - ServiceName:
+            Fn::ImportValue: !Sub '${ProjectName}-${Environment}-ECS-Service-Name'
+          ClusterName:
+            Fn::ImportValue: !Sub '${ProjectName}-${Environment}-ECS-Cluster-Name'
       Tags:
         - Key: Name
           Value: !Sub '${ProjectName}-${Environment}-CodeDeploy-DeploymentGroup'
