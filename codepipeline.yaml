@@ -399,9 +399,9 @@ Resources:
                   Fn::ImportValue: !Sub '${ProjectName}-${Environment}-Blue-TG-ARN'
               - Name:
                   Fn::ImportValue: !Sub '${ProjectName}-${Environment}-Green-TG-ARN'
-            ProdTrafficRoute:
-              ListenerArn:
-                Fn::ImportValue: !Sub '${ProjectName}-${Environment}-ALB-Listener-ARN'
+#            ProdTrafficRoute:
+#              ListenerArn:
+#                Fn::ImportValue: !Sub '${ProjectName}-${Environment}-ALB-Listener-ARN'
       ECSServices:
         - ServiceName:
             Fn::ImportValue: !Sub '${ProjectName}-${Environment}-blue-Service-Name'
