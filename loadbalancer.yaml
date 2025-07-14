@@ -94,19 +94,6 @@ Resources:
       Port: 80
       Protocol: HTTP
 
-  # Optional: HTTPS Listener (uncomment if you have SSL certificate)
-  # HTTPSListener:
-  #   Type: AWS::ElasticLoadBalancingV2::Listener
-  #   Properties:
-  #     DefaultActions:
-  #       - Type: forward
-  #         TargetGroupArn: !Ref BlueTargetGroup
-  #     LoadBalancerArn: !Ref ApplicationLoadBalancer
-  #     Port: 443
-  #     Protocol: HTTPS
-  #     Certificates:
-  #       - CertificateArn: !Ref SSLCertificateArn
-
 Outputs:
   LoadBalancerDNS:
     Description: 'Application Load Balancer DNS Name'
@@ -130,10 +117,22 @@ Outputs:
     Description: 'Blue Target Group ARN'
     Value: !Ref BlueTargetGroup
     Export:
+      Name: !Sub '${ProjectName}-${Environment}-Blue-TG-ARN'
+
+  BlueTargetGroupName:
+    Description: 'Blue Target Group Name'
+    Value: !Ref BlueTargetGroup
+    Export:
       Name: !Sub '${ProjectName}-${Environment}-Blue-TG-Name'
 
   GreenTargetGroupArn:
     Description: 'Green Target Group ARN'
+    Value: !Ref GreenTargetGroup
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-Green-TG-ARN'
+
+  GreenTargetGroupName:
+    Description: 'Green Target Group Name'
     Value: !Ref GreenTargetGroup
     Export:
       Name: !Sub '${ProjectName}-${Environment}-Green-TG-Name'
