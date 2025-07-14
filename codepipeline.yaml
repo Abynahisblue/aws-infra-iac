@@ -376,7 +376,6 @@ Resources:
         - Key: Project
           Value: !Ref ProjectName
 
-  # CodeDeploy Deployment Group
   CodeDeployDeploymentGroup:
     Type: AWS::CodeDeploy::DeploymentGroup
     Properties:
@@ -394,16 +393,20 @@ Resources:
         DeploymentReadyOption:
           ActionOnTimeout: CONTINUE_DEPLOYMENT
       LoadBalancerInfo:
-        TargetGroupInfoList:
+        TargetGroupPairInfoList:
           - TargetGroups:
-              Fn::ImportValue: !Sub '${ProjectName}-${Environment}-Blue-TG-ARN'  # Changed from Name to ARN
-          - TargetGroups:
-              Fn::ImportValue: !Sub '${ProjectName}-${Environment}-Green-TG-ARN'  # Changed from Name to ARN
+              - Name:
+                  Fn::ImportValue: !Sub '${ProjectName}-${Environment}-Blue-TG-Name'
+              - Name:
+                  Fn::ImportValue: !Sub '${ProjectName}-${Environment}-Green-TG-Name'
+            ProdTrafficRoute:
+              ListenerArn:
+                Fn::ImportValue: !Sub '${ProjectName}-${Environment}-ALB-Listener-ARN'
       ECSServices:
         - ServiceName:
-            Fn::ImportValue: !Sub '${ProjectName}-${Environment}-blue-Service-Name'  # Changed to use blue service
+            Fn::ImportValue: !Sub '${ProjectName}-${Environment}-blue-Service-Name'
           ClusterName:
-            Fn::ImportValue: !Sub '${ProjectName}-${Environment}-ECS-Cluster-ARN'  # Changed from -Name to -ARN
+            Fn::ImportValue: !Sub '${ProjectName}-${Environment}-ECS-Cluster-ARN'
       Tags:
         - Key: Name
           Value: !Sub '${ProjectName}-${Environment}-CodeDeploy-DeploymentGroup'
