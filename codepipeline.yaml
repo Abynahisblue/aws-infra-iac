@@ -396,9 +396,9 @@ Resources:
         TargetGroupPairInfoList:
           - TargetGroups:
               - Name:
-                  Fn::ImportValue: !Sub '${ProjectName}-${Environment}-Blue-TG-Name'
+                  Fn::ImportValue: !Sub '${ProjectName}-${Environment}-Blue-TG-ARN'
               - Name:
-                  Fn::ImportValue: !Sub '${ProjectName}-${Environment}-Green-TG-Name'
+                  Fn::ImportValue: !Sub '${ProjectName}-${Environment}-Green-TG-ARN'
             ProdTrafficRoute:
               ListenerArn:
                 Fn::ImportValue: !Sub '${ProjectName}-${Environment}-ALB-Listener-ARN'
