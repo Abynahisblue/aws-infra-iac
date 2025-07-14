@@ -52,9 +52,9 @@ Parameters:
     Description: 'Deployment environment (blue or green)'
 
 
-  Conditions:
-    IsBlueEnvironment: !Equals [ !Ref DeploymentEnvironment, 'blue' ]
-    IsGreenEnvironment: !Equals [ !Ref DeploymentEnvironment, 'green' ]
+Conditions:
+  IsBlueEnvironment: !Equals [ !Ref DeploymentEnvironment, 'blue' ]
+  IsGreenEnvironment: !Equals [ !Ref DeploymentEnvironment, 'green' ]
 
 Resources:
   ECSTaskDefinition:
