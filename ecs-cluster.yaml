@@ -47,8 +47,11 @@ Parameters:
     DeploymentEnvironment:
       Type: String
       Default: 'blue'
-      AllowedValues: ['blue', 'green']
+      AllowedValues:
+        - blue
+        - green
       Description: 'Deployment environment (blue or green)'
+
 
   Conditions:
     IsBlueEnvironment: !Equals [ !Ref DeploymentEnvironment, 'blue' ]
