@@ -122,13 +122,6 @@ Resources:
             - Fn::ImportValue: !Sub '${ProjectName}-${Environment}-PrivateSubnet1-ID'
             - Fn::ImportValue: !Sub '${ProjectName}-${Environment}-PrivateSubnet2-ID'
           AssignPublicIp: DISABLED
-      LoadBalancers:
-        - TargetGroupArn: !If
-            - IsBlueEnvironment
-            - Fn::ImportValue: !Sub '${ProjectName}-${Environment}-Blue-TG-ARN'
-            - Fn::ImportValue: !Sub '${ProjectName}-${Environment}-Green-TG-ARN'
-          ContainerName: !Sub '${ProjectName}-${Environment}-container'
-          ContainerPort: !Ref ContainerPort
       EnableExecuteCommand: true
       Tags:
         - Key: Name
