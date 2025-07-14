@@ -1,0 +1,139 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Application Load Balancer for Blue/Green ECS Deployment'
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: 'webapp'
+    Description: 'Name of the project for resource naming'
+
+  Environment:
+    Type: String
+    Default: 'prod'
+    AllowedValues: ['dev', 'staging', 'prod']
+    Description: 'Environment name'
+
+  ContainerPort:
+    Type: Number
+    Default: 8080
+    Description: 'Port on which the container listens'
+
+Resources:
+  ApplicationLoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Name: !Sub '${ProjectName}-${Environment}-ALB'
+      Scheme: internet-facing
+      Type: application
+      Subnets:
+        - Fn::ImportValue: !Sub '${ProjectName}-${Environment}-PublicSubnet1-ID'
+        - Fn::ImportValue: !Sub '${ProjectName}-${Environment}-PublicSubnet2-ID'
+      SecurityGroups:
+        - Fn::ImportValue: !Sub '${ProjectName}-${Environment}-ALB-SG-ID'
+      Tags:
+        - Key: Name
+          Value: !Sub '${ProjectName}-${Environment}-ALB'
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Environment
+          Value: !Ref Environment
+
+  BlueTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Name: !Sub '${ProjectName}-${Environment}-Blue-TG'
+      Port: !Ref ContainerPort
+      Protocol: HTTP
+      VpcId:
+        Fn::ImportValue: !Sub '${ProjectName}-${Environment}-VPC-ID'
+      TargetType: ip
+      HealthCheckPath: /
+      HealthCheckProtocol: HTTP
+      HealthCheckIntervalSeconds: 30
+      HealthCheckTimeoutSeconds: 5
+      HealthyThresholdCount: 2
+      UnhealthyThresholdCount: 3
+      Tags:
+        - Key: Name
+          Value: !Sub '${ProjectName}-${Environment}-Blue-TG'
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Environment
+          Value: !Ref Environment
+
+  GreenTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Name: !Sub '${ProjectName}-${Environment}-Green-TG'
+      Port: !Ref ContainerPort
+      Protocol: HTTP
+      VpcId:
+        Fn::ImportValue: !Sub '${ProjectName}-${Environment}-VPC-ID'
+      TargetType: ip
+      HealthCheckPath: /
+      HealthCheckProtocol: HTTP
+      HealthCheckIntervalSeconds: 30
+      HealthCheckTimeoutSeconds: 5
+      HealthyThresholdCount: 2
+      UnhealthyThresholdCount: 3
+      Tags:
+        - Key: Name
+          Value: !Sub '${ProjectName}-${Environment}-Green-TG'
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Environment
+          Value: !Ref Environment
+
+  ALBListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref BlueTargetGroup
+      LoadBalancerArn: !Ref ApplicationLoadBalancer
+      Port: 80
+      Protocol: HTTP
+
+  # Optional: HTTPS Listener (uncomment if you have SSL certificate)
+  # HTTPSListener:
+  #   Type: AWS::ElasticLoadBalancingV2::Listener
+  #   Properties:
+  #     DefaultActions:
+  #       - Type: forward
+  #         TargetGroupArn: !Ref BlueTargetGroup
+  #     LoadBalancerArn: !Ref ApplicationLoadBalancer
+  #     Port: 443
+  #     Protocol: HTTPS
+  #     Certificates:
+  #       - CertificateArn: !Ref SSLCertificateArn
+
+Outputs:
+  LoadBalancerDNS:
+    Description: 'Application Load Balancer DNS Name'
+    Value: !GetAtt ApplicationLoadBalancer.DNSName
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-ALB-DNS'
+
+  LoadBalancerArn:
+    Description: 'Application Load Balancer ARN'
+    Value: !Ref ApplicationLoadBalancer
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-ALB-ARN'
+
+  ALBListenerArn:
+    Description: 'Application Load Balancer Listener ARN'
+    Value: !Ref ALBListener
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-ALB-Listener-ARN'
+
+  BlueTargetGroupArn:
+    Description: 'Blue Target Group ARN'
+    Value: !Ref BlueTargetGroup
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-Blue-TG-ARN'
+
+  GreenTargetGroupArn:
+    Description: 'Green Target Group ARN'
+    Value: !Ref GreenTargetGroup
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-Green-TG-ARN'
