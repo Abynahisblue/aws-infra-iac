@@ -384,7 +384,6 @@ Resources:
       DeploymentGroupName: !Sub '${ProjectName}-${Environment}-deployment-group'
       ServiceRoleArn: !GetAtt CodeDeployServiceRole.Arn
       DeploymentConfigName: CodeDeployDefault.ECSLinear10PercentEvery1Minutes
-      # Add the required deployment style for ECS Blue/Green
       DeploymentStyle:
         DeploymentType: BLUE_GREEN
         DeploymentOption: WITH_TRAFFIC_CONTROL
@@ -394,9 +393,6 @@ Resources:
           TerminationWaitTimeInMinutes: 5
         DeploymentReadyOption:
           ActionOnTimeout: CONTINUE_DEPLOYMENT
-      LoadBalancerInfo:
-        TargetGroupInfoList:
-          - Name: !Sub '${ProjectName}-${Environment}-Blue-TG'
       ECSServices:
         - ServiceName: !Sub '${ProjectName}-${Environment}-blue-service'
           ClusterName: !Sub '${ProjectName}-${Environment}-Cluster'
