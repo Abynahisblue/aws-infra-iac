@@ -401,7 +401,7 @@ Resources:
         - ServiceName:
             Fn::ImportValue: !Sub '${ProjectName}-${Environment}-ECS-Service-Name'
           ClusterName:
-            Fn::ImportValue: !Sub '${ProjectName}-${Environment}-ECS-Cluster-Name'
+            Fn::ImportValue: !Sub '${ProjectName}-${Environment}-ECS-Cluster-ARN'  # Changed from -Name to -ARN
       Tags:
         - Key: Name
           Value: !Sub '${ProjectName}-${Environment}-CodeDeploy-DeploymentGroup'
