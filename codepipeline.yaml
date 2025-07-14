@@ -395,9 +395,9 @@ Resources:
           ActionOnTimeout: CONTINUE_DEPLOYMENT
       LoadBalancerInfo:
         TargetGroupInfoList:
-          - TargetGroupArn:
+          - TargetGroups:
               Fn::ImportValue: !Sub '${ProjectName}-${Environment}-Blue-TG-ARN'  # Changed from Name to ARN
-          - TargetGroupArn:
+          - TargetGroups:
               Fn::ImportValue: !Sub '${ProjectName}-${Environment}-Green-TG-ARN'  # Changed from Name to ARN
       ECSServices:
         - ServiceName:
