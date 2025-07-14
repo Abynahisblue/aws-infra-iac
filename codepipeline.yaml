@@ -85,7 +85,7 @@ Resources:
                 Action:
                   - s3:GetObject
                   - s3:PutObject
-                Resource: !Sub '${CodePipelineArtifactsBucket}/*'
+                Resource: !Sub '${CodePipelineArtifactsBucket.Arn}/*'
               - Effect: Allow
                 Action:
                   - ecr:GetAuthorizationToken
