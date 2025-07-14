@@ -1,4 +1,4 @@
-AWSTemplateFormatVersion: '2010-09-0AWSTemplateFormatVersion: '2010-09-09'
+AWSTemplateFormatVersion: '2010-09-09'
 Description: 'CodePipeline for Blue/Green Deployment with ECR Integration'
 
 Parameters:
@@ -36,6 +36,7 @@ Parameters:
     Description: 'Port your ECS container listens on'
 
 Resources:
+  # S3 Bucket for CodePipeline Artifacts
   CodePipelineArtifactsBucket:
     Type: AWS::S3::Bucket
     Properties:
@@ -62,6 +63,7 @@ Resources:
         - Key: Project
           Value: !Ref ProjectName
 
+  # CodeBuild Service Role
   CodeBuildServiceRole:
     Type: AWS::IAM::Role
     Properties:
@@ -106,6 +108,7 @@ Resources:
         - Key: Project
           Value: !Ref ProjectName
 
+  # CodePipeline Service Role
   CodePipelineServiceRole:
     Type: AWS::IAM::Role
     Properties:
@@ -169,6 +172,7 @@ Resources:
         - Key: Project
           Value: !Ref ProjectName
 
+  # CodeDeploy Service Role
   CodeDeployServiceRole:
     Type: AWS::IAM::Role
     Properties:
@@ -265,41 +269,47 @@ Resources:
           Value: !Ref ProjectName
 
   CodeDeployDeploymentGroup:
-  Type: AWS::CodeDeploy::DeploymentGroup
-  Properties:
-    ApplicationName: !Ref CodeDeployApplication
-    DeploymentGroupName: !Sub '${ProjectName}-${Environment}-deployment-group'
-    ServiceRoleArn: !GetAtt CodeDeployServiceRole.Arn
-    DeploymentStyle:
-      DeploymentType: BLUE_GREEN
-      DeploymentOption: WITH_TRAFFIC_CONTROL
-    DeploymentConfigName: CodeDeployDefault.ECSLinear10PercentEvery1Minute
-    BlueGreenDeploymentConfiguration:
-      TerminateBlueInstancesOnDeploymentSuccess:
-        Action: TERMINATE
-        TerminationWaitTimeInMinutes: 5
-      DeploymentReadyOption:
-        ActionOnTimeout: CONTINUE_DEPLOYMENT
-      GreenFleetProvisioningOption:
-        Action: DISCOVER_EXISTING
-    LoadBalancerInfo:
-      TargetGroupPairInfoList:
-        - ProdTrafficRoute:
-            ListenerArns:
-              - Fn::ImportValue: !Sub '${ProjectName}-${Environment}-Listener-ARN'
-          TargetGroups:
-            - Name: !Sub '${ProjectName}-${Environment}-Blue-TG'
-            - Name: !Sub '${ProjectName}-${Environment}-Green-TG'
-          ContainerName: !Sub '${ProjectName}-${Environment}-container'
-          ContainerPort: !Ref ContainerPort
-    ECSService:
-      - ServiceName: !Sub '${ProjectName}-${Environment}-blue-service'
-        ClusterName: !Sub '${ProjectName}-${Environment}-Cluster'
-    Tags:
-      - Key: Name
-        Value: !Sub '${ProjectName}-${Environment}-CodeDeploy-DeploymentGroup'
-      - Key: Project
-        Value: !Ref ProjectName
+    Type: AWS::CodeDeploy::DeploymentGroup
+    Properties:
+      ApplicationName: !Ref CodeDeployApplication
+      DeploymentGroupName: !Sub '${ProjectName}-${Environment}-deployment-group'
+      ServiceRoleArn: !GetAtt CodeDeployServiceRole.Arn
+
+      DeploymentStyle:
+        DeploymentType: BLUE_GREEN
+        DeploymentOption: WITH_TRAFFIC_CONTROL
+
+      DeploymentConfigName: CodeDeployDefault.ECSLinear10PercentEvery1Minute
+
+      BlueGreenDeploymentConfiguration:
+        TerminateBlueInstancesOnDeploymentSuccess:
+          Action: TERMINATE
+          TerminationWaitTimeInMinutes: 5
+        DeploymentReadyOption:
+          ActionOnTimeout: CONTINUE_DEPLOYMENT
+        GreenFleetProvisioningOption:
+          Action: DISCOVER_EXISTING
+
+      LoadBalancerInfo:
+        TargetGroupPairInfoList:
+          - TargetGroups:
+              - Name: !Sub '${ProjectName}-${Environment}-Blue-TG'
+              - Name: !Sub '${ProjectName}-${Environment}-Green-TG'
+            ProdTrafficRoute:
+              ListenerArns:
+                - Fn::ImportValue: !Sub '${ProjectName}-${Environment}-Listener-ARN'
+            ContainerName: !Sub '${ProjectName}-${Environment}-container'
+            ContainerPort: !Ref ContainerPort
+
+      ECSService:
+        - ServiceName: !Sub '${ProjectName}-${Environment}-blue-service'
+          ClusterName: !Sub '${ProjectName}-${Environment}-Cluster'
+
+      Tags:
+        - Key: Name
+          Value: !Sub '${ProjectName}-${Environment}-CodeDeploy-DeploymentGroup'
+        - Key: Project
+          Value: !Ref ProjectName
 
   # EventBridge Rule for ECR Push
   ECRPushEventRule:
