@@ -49,11 +49,6 @@ Parameters:
     AllowedValues: ['blue', 'green']
     Description: 'Deployment environment (blue or green)'
 
-Conditions:
-  IsBlueEnvironment: !Equals [!Ref DeploymentEnvironment, 'blue']
-  IsGreenEnvironment: !Equals [!Ref DeploymentEnvironment, 'green']
-
-
 Resources:
   ECSTaskDefinition:
     Type: AWS::ECS::TaskDefinition
