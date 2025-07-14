@@ -392,6 +392,8 @@ Resources:
           TerminationWaitTimeInMinutes: 5
         DeploymentReadyOption:
           ActionOnTimeout: CONTINUE_DEPLOYMENT
+        GreenFleetProvisioningOption:
+          Action: COPY_AUTO_SCALING_GROUP
       LoadBalancerInfo:
         TargetGroupPairInfoList:
           - TargetGroups:
@@ -399,9 +401,9 @@ Resources:
                   Fn::ImportValue: !Sub '${ProjectName}-${Environment}-Blue-TG-Name'
               - Name:
                   Fn::ImportValue: !Sub '${ProjectName}-${Environment}-Green-TG-Name'
-#            ProdTrafficRoute:
-#              ListenerArn:
-#                Fn::ImportValue: !Sub '${ProjectName}-${Environment}-ALB-Listener-ARN'
+            ProdTrafficRoute:
+              ListenerArns:
+                - Fn::ImportValue: !Sub '${ProjectName}-${Environment}-ALB-Listener-ARN'
       ECSServices:
         - ServiceName:
             Fn::ImportValue: !Sub '${ProjectName}-${Environment}-ECS-Service-Name'
