@@ -43,11 +43,12 @@ Parameters:
     Default: 50
     Description: 'Target CPU utilization for auto scaling'
 
-  DeploymentEnvironment:
-    Type: String
-    Default: 'blue'
-    AllowedValues: ['blue', 'green']
-    Description: 'Deployment environment (blue or green)'
+  Parameters:
+    DeploymentEnvironment:
+      Type: String
+      Default: 'blue'
+      AllowedValues: ['blue', 'green']
+      Description: 'Deployment environment (blue or green)'
 
   Conditions:
     IsBlueEnvironment: !Equals [ !Ref DeploymentEnvironment, 'blue' ]
