@@ -376,7 +376,7 @@ Resources:
         - Key: Project
           Value: !Ref ProjectName
 
-  # CodeDeploy Deployment Group - CORRECTED
+  # CodeDeploy Deployment Group
   CodeDeployDeploymentGroup:
     Type: AWS::CodeDeploy::DeploymentGroup
     Properties:
@@ -393,8 +393,6 @@ Resources:
           TerminationWaitTimeInMinutes: 5
         DeploymentReadyOption:
           ActionOnTimeout: CONTINUE_DEPLOYMENT
-      #        GreenFleetProvisioningOption:
-      #          Action: COPY_AUTO_SCALING_GROUP
       LoadBalancerInfo:
         TargetGroupPairInfoList:
           - TargetGroups:
