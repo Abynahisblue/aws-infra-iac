@@ -247,7 +247,7 @@ Resources:
 Outputs:
   ECSServiceName:
     Description: 'ECS Service Name'
-    Value: !Sub '${ProjectName}-${Environment}-service'
+    Value: !Sub '${ProjectName}-${Environment}-${DeploymentEnvironment}-service'
     Export:
       Name: !Sub '${ProjectName}-${Environment}-${DeploymentEnvironment}-Service-Name'
 
