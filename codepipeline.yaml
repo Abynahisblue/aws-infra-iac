@@ -406,7 +406,7 @@ Resources:
                 - Fn::ImportValue: !Sub '${ProjectName}-${Environment}-ALB-Listener-ARN'
       ECSServices:
         - ServiceName:
-            Fn::ImportValue: !Sub '${ProjectName}-${Environment}-ECS-Service-Name'
+            Fn::ImportValue: !Sub '${ProjectName}-${Environment}-blue-Service-Name'
           ClusterName:
             Fn::ImportValue: !Sub '${ProjectName}-${Environment}-ECS-Cluster-Name'
       Tags:
