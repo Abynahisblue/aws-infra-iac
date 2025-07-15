@@ -285,9 +285,3 @@ Outputs:
     Value: !Ref SNSTopic
     Export:
       Name: !Sub '${ProjectName}-${Environment}-${DeploymentEnvironment}-SNS-Topic-ARN'
-
-  ECSServiceNameBase:
-    Description: 'Base ECS Service Name (without color)'
-    Value: !Sub '${ProjectName}-${Environment}-service'
-    Export:
-      Name: !Sub '${ProjectName}-${Environment}-ECS-Service-Name'
