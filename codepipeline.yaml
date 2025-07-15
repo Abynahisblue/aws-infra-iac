@@ -134,7 +134,7 @@ Resources:
               - Effect: Allow
                 Action:
                   - s3:ListBucket
-                Resource: !Ref CodePipelineArtifactsBucket
+                Resource: !GetAtt CodePipelineArtifactsBucket.Arn
               - Effect: Allow
                 Action:
                   - codebuild:BatchGetBuilds
