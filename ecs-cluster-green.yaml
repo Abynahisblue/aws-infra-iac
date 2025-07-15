@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: 'ECS Service with Auto Scaling and Blue/Green Deployment Support'
+Description: 'ECS Task Definition and Listener Rule for Green Deployment'
 
 Parameters:
   ProjectName:
@@ -16,32 +16,14 @@ Parameters:
   ContainerImage:
     Type: String
     Description: 'ECR Container Image URI'
+    # Keep this as nginx:latest or update to your custom nginx-8080 image URI,
+    # or your actual application image URI that listens on 8080.
     Default: 'nginx:latest'
 
   ContainerPort:
     Type: Number
-    Default: 80
+    Default: 8080 # Keep 8080 as your application will run on this port.
     Description: 'Port on which the container listens'
-
-  DesiredCount:
-    Type: Number
-    Default: 0
-    Description: 'Desired number of tasks'
-
-  MinCapacity:
-    Type: Number
-    Default: 2
-    Description: 'Minimum number of tasks'
-
-  MaxCapacity:
-    Type: Number
-    Default: 10
-    Description: 'Maximum number of tasks'
-
-  TargetCPUUtilization:
-    Type: Number
-    Default: 50
-    Description: 'Target CPU utilization for auto scaling'
 
   DeploymentEnvironment:
     Type: String
@@ -92,7 +74,7 @@ Resources:
           HealthCheck:
             Command:
               - CMD-SHELL
-              - curl -f http://localhost:8080/ || exit 1
+              - curl -f http://localhost:8080/ || exit 1 # This will hit your app on port 8080
             Interval: 30
             Timeout: 5
             Retries: 3
@@ -102,148 +84,6 @@ Resources:
           Value: !Sub '${ProjectName}-${Environment}-${DeploymentEnvironment}-TaskDefinition'
         - Key: Project
           Value: !Ref ProjectName
-
-  ECSService:
-    Type: AWS::ECS::Service
-    Properties:
-      ServiceName: !Sub '${ProjectName}-${Environment}-service'
-      Cluster:
-        Fn::ImportValue: !Sub '${ProjectName}-${Environment}-ECS-Cluster-ARN'
-      TaskDefinition: !Ref ECSTaskDefinition
-      DesiredCount: !Ref DesiredCount
-      LaunchType: FARGATE
-      DeploymentController:
-        Type: CODE_DEPLOY
-      NetworkConfiguration:
-        AwsvpcConfiguration:
-          SecurityGroups:
-            - Fn::ImportValue: !Sub '${ProjectName}-${Environment}-ECS-SG-ID'
-          Subnets:
-            - Fn::ImportValue: !Sub '${ProjectName}-${Environment}-PrivateSubnet1-ID'
-            - Fn::ImportValue: !Sub '${ProjectName}-${Environment}-PrivateSubnet2-ID'
-          AssignPublicIp: DISABLED
-      LoadBalancers:
-        - TargetGroupArn:
-            Fn::ImportValue: !Sub '${ProjectName}-${Environment}-Green-TG-ARN'
-          ContainerName: !Sub '${ProjectName}-${Environment}-container'
-          ContainerPort: !Ref ContainerPort
-      EnableExecuteCommand: true
-      Tags:
-        - Key: Name
-          Value: !Sub '${ProjectName}-${Environment}-${DeploymentEnvironment}-Service'
-        - Key: Project
-          Value: !Ref ProjectName
-        - Key: Environment
-          Value: !Ref Environment
-        - Key: DeploymentType
-          Value: !Ref DeploymentEnvironment
-
-  ApplicationAutoScalingRole:
-    Type: AWS::IAM::Role
-    Properties:
-      RoleName: !Sub '${ProjectName}-${Environment}-${DeploymentEnvironment}-AutoScalingRole'
-      AssumeRolePolicyDocument:
-        Version: '2012-10-17'
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service: application-autoscaling.amazonaws.com
-            Action: sts:AssumeRole
-      ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/service-role/AmazonEC2ContainerServiceAutoscaleRole
-      Tags:
-        - Key: Name
-          Value: !Sub '${ProjectName}-${Environment}-${DeploymentEnvironment}-AutoScalingRole'
-        - Key: Project
-          Value: !Ref ProjectName
-
-  ApplicationAutoScalingTarget:
-    Type: AWS::ApplicationAutoScaling::ScalableTarget
-    Properties:
-      MaxCapacity: !Ref MaxCapacity
-      MinCapacity: !Ref MinCapacity
-      ResourceId: !Sub 'service/${ProjectName}-${Environment}-Cluster/${ProjectName}-${Environment}-service'
-      RoleARN: !GetAtt ApplicationAutoScalingRole.Arn
-      ScalableDimension: ecs:service:DesiredCount
-      ServiceNamespace: ecs
-    DependsOn: ECSService
-
-  CPUScalingPolicy:
-    Type: AWS::ApplicationAutoScaling::ScalingPolicy
-    Properties:
-      PolicyName: !Sub '${ProjectName}-${Environment}-${DeploymentEnvironment}-CPUScalingPolicy'
-      PolicyType: TargetTrackingScaling
-      ScalingTargetId: !Ref ApplicationAutoScalingTarget
-      TargetTrackingScalingPolicyConfiguration:
-        TargetValue: !Ref TargetCPUUtilization
-        PredefinedMetricSpecification:
-          PredefinedMetricType: ECSServiceAverageCPUUtilization
-        ScaleOutCooldown: 300
-        ScaleInCooldown: 300
-
-  MemoryScalingPolicy:
-    Type: AWS::ApplicationAutoScaling::ScalingPolicy
-    Properties:
-      PolicyName: !Sub '${ProjectName}-${Environment}-${DeploymentEnvironment}-MemoryScalingPolicy'
-      PolicyType: TargetTrackingScaling
-      ScalingTargetId: !Ref ApplicationAutoScalingTarget
-      TargetTrackingScalingPolicyConfiguration:
-        TargetValue: 70
-        PredefinedMetricSpecification:
-          PredefinedMetricType: ECSServiceAverageMemoryUtilization
-        ScaleOutCooldown: 300
-        ScaleInCooldown: 300
-
-  SNSTopic:
-    Type: AWS::SNS::Topic
-    Properties:
-      TopicName: !Sub '${ProjectName}-${Environment}-${DeploymentEnvironment}-Notifications'
-      DisplayName: !Sub '${ProjectName} ${Environment} ${DeploymentEnvironment} Notifications'
-      Tags:
-        - Key: Name
-          Value: !Sub '${ProjectName}-${Environment}-${DeploymentEnvironment}-SNS-Topic'
-        - Key: Project
-          Value: !Ref ProjectName
-
-  HighCPUAlarm:
-    Type: AWS::CloudWatch::Alarm
-    Properties:
-      AlarmName: !Sub '${ProjectName}-${Environment}-${DeploymentEnvironment}-HighCPU'
-      AlarmDescription: 'High CPU utilization alarm'
-      MetricName: CPUUtilization
-      Namespace: AWS/ECS
-      Statistic: Average
-      Period: 300
-      EvaluationPeriods: 2
-      Threshold: 80
-      ComparisonOperator: GreaterThanThreshold
-      Dimensions:
-        - Name: ServiceName
-          Value: !Ref ECSService
-        - Name: ClusterName
-          Value: !Sub '${ProjectName}-${Environment}-Cluster'
-      AlarmActions:
-        - !Ref SNSTopic
-
-  LowCPUAlarm:
-    Type: AWS::CloudWatch::Alarm
-    Properties:
-      AlarmName: !Sub '${ProjectName}-${Environment}-${DeploymentEnvironment}-LowCPU'
-      AlarmDescription: 'Low CPU utilization alarm'
-      MetricName: CPUUtilization
-      Namespace: AWS/ECS
-      Statistic: Average
-      Period: 300
-      EvaluationPeriods: 2
-      Threshold: 10
-      ComparisonOperator: LessThanThreshold
-      Dimensions:
-        - Name: ServiceName
-          Value: !Ref ECSService
-        - Name: ClusterName
-          Value: !Sub '${ProjectName}-${Environment}-Cluster'
-      AlarmActions:
-        - !Ref SNSTopic
 
   # Green-specific listener rule for testing
   GreenListenerRule:
@@ -262,26 +102,18 @@ Resources:
             Fn::ImportValue: !Sub '${ProjectName}-${Environment}-Green-TG-ARN'
 
 Outputs:
-  ECSServiceName:
-    Description: 'ECS Service Name'
-    Value: !Sub '${ProjectName}-${Environment}-service'
-    Export:
-      Name: !Sub '${ProjectName}-${Environment}-Green-Service-Name'
-
   ECSTaskDefinitionArn:
     Description: 'ECS Task Definition ARN'
     Value: !Ref ECSTaskDefinition
     Export:
       Name: !Sub '${ProjectName}-${Environment}-${DeploymentEnvironment}-TaskDefinition-ARN'
 
-  AutoScalingTargetId:
-    Description: 'Application Auto Scaling Target ID'
-    Value: !Ref ApplicationAutoScalingTarget
-    Export:
-      Name: !Sub '${ProjectName}-${Environment}-${DeploymentEnvironment}-AutoScalingTarget-ID'
-
-  SNSTopicArn:
-    Description: 'SNS Topic ARN for notifications'
-    Value: !Ref SNSTopic
-    Export:
-      Name: !Sub '${ProjectName}-${Environment}-${DeploymentEnvironment}-SNS-Topic-ARN'
+# Removed:
+# ECSService
+# ApplicationAutoScalingRole
+# ApplicationAutoScalingTarget
+# CPUScalingPolicy
+# MemoryScalingPolicy
+# SNSTopic
+# HighCPUAlarm
+# LowCPUAlarm
