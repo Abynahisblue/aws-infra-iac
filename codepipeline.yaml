@@ -521,6 +521,6 @@ Outputs:
 
   ArtifactsBucketName:
     Description: 'S3 Artifacts Bucket Name'
-    Value: !Ref CodePipelineArtifactsBucket
+    Value: !Ref ExistingArtifactsBucketName
     Export:
       Name: !Sub '${ProjectName}-${Environment}-Artifacts-Bucket-Name'
