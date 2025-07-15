@@ -106,7 +106,7 @@ Resources:
   ECSService:
     Type: AWS::ECS::Service
     Properties:
-      ServiceName: !Sub '${ProjectName}-${Environment}-${DeploymentEnvironment}-service'
+      ServiceName: !Sub '${ProjectName}-${Environment}-service'
       Cluster:
         Fn::ImportValue: !Sub '${ProjectName}-${Environment}-ECS-Cluster-ARN'
       TaskDefinition: !Ref ECSTaskDefinition
@@ -264,9 +264,9 @@ Resources:
 Outputs:
   ECSServiceName:
     Description: 'ECS Service Name'
-    Value: !Sub '${ProjectName}-${Environment}-${DeploymentEnvironment}-service'
+    Value: !Sub '${ProjectName}-${Environment}-service'
     Export:
-      Name: !Sub '${ProjectName}-${Environment}-${DeploymentEnvironment}-Service-Name'
+      Name: !Sub '${ProjectName}-${Environment}-Service-Name'
 
   ECSTaskDefinitionArn:
     Description: 'ECS Task Definition ARN'
