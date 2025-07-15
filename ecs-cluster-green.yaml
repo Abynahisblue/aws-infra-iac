@@ -16,13 +16,11 @@ Parameters:
   ContainerImage:
     Type: String
     Description: 'ECR Container Image URI'
-    # Keep this as nginx:latest or update to your custom nginx-8080 image URI,
-    # or your actual application image URI that listens on 8080.
     Default: 'nginx:latest'
 
   ContainerPort:
     Type: Number
-    Default: 8080 # Keep 8080 as your application will run on this port.
+    Default: 80 # Keep 8080 as your application will run on this port.
     Description: 'Port on which the container listens'
 
   DeploymentEnvironment:
