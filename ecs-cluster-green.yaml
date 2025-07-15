@@ -266,7 +266,7 @@ Outputs:
     Description: 'ECS Service Name'
     Value: !Sub '${ProjectName}-${Environment}-service'
     Export:
-      Name: !Sub '${ProjectName}-${Environment}-Service-Name'
+      Name: !Sub '${ProjectName}-${Environment}-Green-Service-Name'
 
   ECSTaskDefinitionArn:
     Description: 'ECS Task Definition ARN'

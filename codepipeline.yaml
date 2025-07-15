@@ -376,7 +376,7 @@ Resources:
         - Key: Project
           Value: !Ref ProjectName
 
-    # CodeDeploy Deployment Group - FIXED
+  # CodeDeploy Deployment Group - CORRECTED
   CodeDeployDeploymentGroup:
     Type: AWS::CodeDeploy::DeploymentGroup
     Properties:
@@ -393,8 +393,8 @@ Resources:
           TerminationWaitTimeInMinutes: 5
         DeploymentReadyOption:
           ActionOnTimeout: CONTINUE_DEPLOYMENT
-#        GreenFleetProvisioningOption:
-#          Action: COPY_AUTO_SCALING_GROUP
+      #        GreenFleetProvisioningOption:
+      #          Action: COPY_AUTO_SCALING_GROUP
       LoadBalancerInfo:
         TargetGroupPairInfoList:
           - TargetGroups:
@@ -407,7 +407,7 @@ Resources:
                 - Fn::ImportValue: !Sub '${ProjectName}-${Environment}-ALB-Listener-ARN'
       ECSServices:
         - ServiceName:
-            Fn::ImportValue: !Sub '${ProjectName}-${Environment}-service'  # This should match your blue service export
+            Fn::ImportValue: !Sub '${ProjectName}-${Environment}-Service-Name-Base'
           ClusterName:
             Fn::ImportValue: !Sub '${ProjectName}-${Environment}-Cluster'
       Tags:
