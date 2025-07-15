@@ -35,6 +35,11 @@ Parameters:
     Default: 8080
     Description: 'Port your ECS container listens on'
 
+  ExistingArtifactsBucketName:
+    Type: String
+    Default: 'webapp-prod-codepipeline-artifacts-314146322404-eu-central-1'
+    Description: 'Name of existing S3 bucket for CodePipeline artifacts'
+
 Resources:
   # S3 Bucket for CodePipeline Artifacts
   CodePipelineArtifactsBucket:
@@ -422,7 +427,7 @@ Resources:
       RoleArn: !GetAtt CodePipelineServiceRole.Arn
       ArtifactStore:
         Type: S3
-        Location: !Ref CodePipelineArtifactsBucket
+        Location: !Ref ExistingArtifactsBucketName
       Stages:
         - Name: Source
           Actions:
