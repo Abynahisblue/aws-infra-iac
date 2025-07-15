@@ -32,7 +32,7 @@ Parameters:
 
   ContainerPort:
     Type: Number
-    Default: 8080
+    Default: 80
     Description: 'Port your ECS container listens on'
 
 Resources:

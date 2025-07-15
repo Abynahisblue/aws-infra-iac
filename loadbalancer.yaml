@@ -15,7 +15,7 @@ Parameters:
 
   ContainerPort:
     Type: Number
-    Default: 8080
+    Default: 80
     Description: 'Port on which the container listens'
 
 Resources:
