@@ -409,7 +409,7 @@ Resources:
         - ServiceName:
             Fn::ImportValue: !Sub '${ProjectName}-${Environment}-Service-Name'
           ClusterName:
-            Fn::ImportValue: !Sub '${ProjectName}-${Environment}-Cluster'
+            Fn::ImportValue: !Sub '${ProjectName}-${Environment}-ECS-Cluster-Name'
       Tags:
         - Key: Name
           Value: !Sub '${ProjectName}-${Environment}-CodeDeploy-DeploymentGroup'
