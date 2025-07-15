@@ -124,7 +124,7 @@ Resources:
           AssignPublicIp: DISABLED
       LoadBalancers:
         - TargetGroupArn:
-            Fn::ImportValue: !Sub '${ProjectName}-${Environment}-Blue-TG-ARN'
+            Fn::ImportValue: !Sub '${ProjectName}-${Environment}-Green-TG-ARN'
           ContainerName: !Sub '${ProjectName}-${Environment}-container'
           ContainerPort: !Ref ContainerPort
       EnableExecuteCommand: true
@@ -289,6 +289,5 @@ Outputs:
   ECSServiceNameBase:
     Description: 'Base ECS Service Name (without color)'
     Value: !Sub '${ProjectName}-${Environment}-service'
-    Condition: IsBlueEnvironment
     Export:
       Name: !Sub '${ProjectName}-${Environment}-ECS-Service-Name'
