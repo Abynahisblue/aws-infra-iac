@@ -253,7 +253,7 @@ Resources:
               commands:
                 - echo Build started on `date`
                 - echo Building the Docker image...
-                - docker build --no-cache -t $ECR_REPOSITORY_URI:latest .
+                - docker build -t $ECR_REPOSITORY_URI:latest .
                 - docker tag $ECR_REPOSITORY_URI:latest $ECR_REPOSITORY_URI:$IMAGE_TAG
             post_build:
               commands:
