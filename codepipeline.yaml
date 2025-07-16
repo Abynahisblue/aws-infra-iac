@@ -253,7 +253,7 @@ Resources:
               commands:
                 - echo Build started on `date`
                 - echo Building the Docker image...
-                - docker build -t $ECR_REPOSITORY_URI:latest .
+                - docker build --no-cache -t $ECR_REPOSITORY_URI:latest .
                 - docker tag $ECR_REPOSITORY_URI:latest $ECR_REPOSITORY_URI:$IMAGE_TAG
             post_build:
               commands:
@@ -383,7 +383,7 @@ Resources:
                 AppSpecTemplateArtifact: BuildOutput
                 AppSpecTemplatePath: appspec.yaml
                 Image1ArtifactName: BuildOutput
-                Image1ContainerName: "webapp-prod-container"
+                Image1ContainerName: !Sub '${ProjectName}-${Environment}-container'
               InputArtifacts:
                 - Name: BuildOutput
               Region: !Ref AWS::Region
