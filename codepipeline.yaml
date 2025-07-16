@@ -262,7 +262,7 @@ Resources:
                 - docker push $ECR_REPOSITORY_URI:latest
                 - docker push $ECR_REPOSITORY_URI:$IMAGE_TAG
                 - echo Writing image definitions file...
-                - printf '[{"name":"'$PROJECT_NAME'-'$ENVIRONMENT'-container","imageUri":"%s"}]' $ECR_REPOSITORY_URI:$IMAGE_TAG > imagedefinitions.json
+                - printf '[{"name":"webapp-prod-container","imageUri":"%s"}]' $ECR_REPOSITORY_URI:$IMAGE_TAG > imagedefinitions.json
                 - echo Using existing taskdef.json and appspec.yaml files...
           artifacts:
             files:
