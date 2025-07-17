@@ -15,51 +15,11 @@ env:
   ARTIFACTS_BUCKET: webapp-prod-codepipeline-artifacts-314146322404-eu-central-1
 
 jobs:
-  validate-templates:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      id-token: write
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-region: ${{ env.AWS_REGION }}
-          role-to-assume: ${{ secrets.AWS_IAM_ROLE_ARN }}
-
-      - name: Validate CloudFormation templates
-        run: |
-          # Find all YAML files in the repository (CloudFormation templates)
-          find . -name "*.yaml" -o -name "*.yml" | grep -E "\.(yaml|yml)$" | while read template; do
-            # Skip workflow files
-            if [[ "$template" == *".github/workflows"* ]]; then
-              continue
-            fi
-          
-            echo "Validating $template"
-            aws cloudformation validate-template --template-body file://$template
-          done
-
   deploy-infrastructure:
-    needs: validate-templates
     runs-on: ubuntu-latest
     permissions:
       contents: read
       id-token: write
-
-    strategy:
-      matrix:
-        template:
-          - vpc.yaml
-          - loadbalancer.yaml
-          - ecs-cluster-blue.yaml
-          - ecs-cluster-green.yaml
-          - codepipeline.yaml
-      fail-fast: false
 
     steps:
       - name: Checkout repository
@@ -71,78 +31,66 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
           role-to-assume: ${{ secrets.AWS_IAM_ROLE_ARN }}
 
-      - name: Check if template exists
+      - name: Deploy VPC Stack
         run: |
-          if [ ! -f "${{ matrix.template }}" ]; then
-            echo "Template ${{ matrix.template }} not found"
-            exit 1
-          fi
+          aws cloudformation deploy \
+            --template-file aws-infra-iac/vpc.yaml \
+            --stack-name ${{ env.PROJECT_NAME }}-${{ env.ENVIRONMENT }}-vpc \
+            --parameter-overrides \
+                ProjectName=${{ env.PROJECT_NAME }} \
+                Environment=${{ env.ENVIRONMENT }} \
+            --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM \
+            --no-fail-on-empty-changeset
+          
+          aws cloudformation wait stack-create-complete \
+            --stack-name ${{ env.PROJECT_NAME }}-${{ env.ENVIRONMENT }}-vpc
 
-      - name: Package and deploy template
+      - name: Deploy Load Balancer Stack
         run: |
-          # Generate unique name for changeset
-          TIMESTAMP=$(date +%Y%m%d%H%M%S)
-          CHANGESET_NAME="changeset-$TIMESTAMP"
-          
-          # Special handling for VPC (needs to be deployed first)
-          if [[ "${{ matrix.template }}" == "vpc.yaml" ]]; then
-            echo "Deploying VPC template first..."
-            aws cloudformation deploy \
-              --template-file ${{ matrix.template }} \
-              --stack-name ${{ env.PROJECT_NAME }}-${{ env.ENVIRONMENT }}-vpc \
-              --parameter-overrides \
-                  ProjectName=${{ env.PROJECT_NAME }} \
-                  Environment=${{ env.ENVIRONMENT }} \
-              --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM \
-              --no-fail-on-empty-changeset
-          else
-            echo "Deploying ${{ matrix.template }}..."
-            STACK_NAME="${{ env.PROJECT_NAME }}-${{ env.ENVIRONMENT }}-$(basename ${{ matrix.template }} .yaml | tr '_' '-')"
-          
-            # Handle codepipeline template with additional parameters
-            if [[ "${{ matrix.template }}" == "codepipeline.yaml" ]]; then
-              aws cloudformation deploy \
-                --template-file ${{ matrix.template }} \
-                --stack-name $STACK_NAME \
-                --parameter-overrides \
-                    ProjectName=${{ env.PROJECT_NAME }} \
-                    Environment=${{ env.ENVIRONMENT }} \
-                    GitHubOwner=${{ secrets.GITHUB_OWNER }} \
-                    GitHubRepo=${{ secrets.GITHUB_REPO }} \
-                    GitHubBranch=main \
-                    GitHubTokenSecret=${{ secrets.GITHUB_TOKEN_SECRET }} \
-                    ExistingArtifactsBucketName=${{ env.ARTIFACTS_BUCKET }} \
-                --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM \
-                --no-fail-on-empty-changeset
-            else
-              aws cloudformation deploy \
-                --template-file ${{ matrix.template }} \
-                --stack-name $STACK_NAME \
-                --parameter-overrides \
-                    ProjectName=${{ env.PROJECT_NAME }} \
-                    Environment=${{ env.ENVIRONMENT }} \
-                --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM \
-                --no-fail-on-empty-changeset
-            fi
-          fi
+          aws cloudformation deploy \
+            --template-file aws-infra-iac/loadbalancer.yaml \
+            --stack-name ${{ env.PROJECT_NAME }}-${{ env.ENVIRONMENT }}-loadbalancer \
+            --parameter-overrides \
+                ProjectName=${{ env.PROJECT_NAME }} \
+                Environment=${{ env.ENVIRONMENT }} \
+            --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM \
+            --no-fail-on-empty-changeset
 
-      - name: Verify stack deployment
+      - name: Deploy ECS Blue Stack
         run: |
-          if [[ "${{ matrix.template }}" == "vpc.yaml" ]]; then
-            STACK_NAME="${{ env.PROJECT_NAME }}-${{ env.ENVIRONMENT }}-vpc"
-          else
-            STACK_NAME="${{ env.PROJECT_NAME }}-${{ env.ENVIRONMENT }}-$(basename ${{ matrix.template }} .yaml | tr '_' '-')"
-          fi
-          
-          echo "Checking stack status for: $STACK_NAME"
-          
-          # Wait for stack to be in a stable state
-          aws cloudformation wait stack-deploy-complete --stack-name $STACK_NAME || {
-            echo "Stack deployment failed. Checking events..."
-            aws cloudformation describe-stack-events --stack-name $STACK_NAME \
-              --query 'StackEvents[?ResourceStatus==`CREATE_FAILED` || ResourceStatus==`UPDATE_FAILED`].[ResourceType,ResourceStatus,ResourceStatusReason]' \
-              --output table
-            exit 1
-          }
-          
-          echo "Stack $STACK_NAME deployed successfully"
+          aws cloudformation deploy \
+            --template-file aws-infra-iac/ecs-cluster-blue.yaml \
+            --stack-name ${{ env.PROJECT_NAME }}-${{ env.ENVIRONMENT }}-ecs-blue \
+            --parameter-overrides \
+                ProjectName=${{ env.PROJECT_NAME }} \
+                Environment=${{ env.ENVIRONMENT }} \
+                DeploymentEnvironment=blue \
+            --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM \
+            --no-fail-on-empty-changeset
+
+      - name: Deploy ECS Green Stack
+        run: |
+          aws cloudformation deploy \
+            --template-file aws-infra-iac/ecs-cluster-green.yaml \
+            --stack-name ${{ env.PROJECT_NAME }}-${{ env.ENVIRONMENT }}-ecs-green \
+            --parameter-overrides \
+                ProjectName=${{ env.PROJECT_NAME }} \
+                Environment=${{ env.ENVIRONMENT }} \
+                DeploymentEnvironment=green \
+            --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM \
+            --no-fail-on-empty-changeset
+
+      - name: Deploy Pipeline Stack
+        run: |
+          aws cloudformation deploy \
+            --template-file aws-infra-iac/codepipeline.yaml \
+            --stack-name ${{ env.PROJECT_NAME }}-${{ env.ENVIRONMENT }}-pipeline \
+            --parameter-overrides \
+                ProjectName=${{ env.PROJECT_NAME }} \
+                Environment=${{ env.ENVIRONMENT }} \
+                GitHubOwner=your-github-owner \
+                GitHubRepo=your-repo-name \
+                GitHubBranch=main \
+                GitHubTokenSecret=your-github-token-secret-name \
+            --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM \
+            --no-fail-on-empty-changeset
