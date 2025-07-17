@@ -204,15 +204,14 @@ jobs:
         run: |
           aws cloudformation deploy \
             --template-file codepipeline.yaml \
-            --stack-name ${{ env.PROJECT_NAME }}-${{ env.ENVIRONMENT }}-pipeline \
+            --stack-name webapp-prod-pipeline \
             --parameter-overrides \
-                ProjectName=${{ env.PROJECT_NAME }} \
-                Environment=${{ env.ENVIRONMENT }} \
-                GitHubOwner=${{ secrets.GITHUB_OWNER }} \
-                GitHubRepo=${{ secrets.GITHUB_REPO }} \
+                ProjectName=webapp \
+                Environment=prod \
+                GitHubOwner=Abynahisblue \
+                GitHubRepo=aws-java-react-app \
                 GitHubBranch=main \
-                GitHubTokenSecret=${{ secrets.GITHUB_TOKEN_SECRET }} \
-                ExistingArtifactsBucketName=${{ env.ARTIFACTS_BUCKET }} \
+                GitHubTokenSecret=github-token \
             --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM \
             --no-fail-on-empty-changeset
 
