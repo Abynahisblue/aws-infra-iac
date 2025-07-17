@@ -34,7 +34,7 @@ jobs:
       - name: Deploy VPC Stack
         run: |
           aws cloudformation deploy \
-            --template-file /vpc.yaml \
+            --template-file file://vpc.yaml \
             --stack-name ${{ env.PROJECT_NAME }}-${{ env.ENVIRONMENT }}-vpc \
             --parameter-overrides \
                 ProjectName=${{ env.PROJECT_NAME }} \
@@ -48,7 +48,7 @@ jobs:
       - name: Deploy Load Balancer Stack
         run: |
           aws cloudformation deploy \
-            --template-file /loadbalancer.yaml \
+            --template-file file://loadbalancer.yaml \
             --stack-name ${{ env.PROJECT_NAME }}-${{ env.ENVIRONMENT }}-loadbalancer \
             --parameter-overrides \
                 ProjectName=${{ env.PROJECT_NAME }} \
@@ -59,7 +59,7 @@ jobs:
       - name: Deploy ECS Blue Stack
         run: |
           aws cloudformation deploy \
-            --template-file /ecs-cluster-blue.yaml \
+            --template-file file://ecs-cluster-blue.yaml \
             --stack-name ${{ env.PROJECT_NAME }}-${{ env.ENVIRONMENT }}-ecs-blue \
             --parameter-overrides \
                 ProjectName=${{ env.PROJECT_NAME }} \
@@ -71,7 +71,7 @@ jobs:
       - name: Deploy ECS Green Stack
         run: |
           aws cloudformation deploy \
-            --template-file /ecs-cluster-green.yaml \
+            --template-file file://ecs-cluster-green.yaml \
             --stack-name ${{ env.PROJECT_NAME }}-${{ env.ENVIRONMENT }}-ecs-green \
             --parameter-overrides \
                 ProjectName=${{ env.PROJECT_NAME }} \
@@ -83,7 +83,7 @@ jobs:
       - name: Deploy Pipeline Stack
         run: |
           aws cloudformation deploy \
-            --template-file /codepipeline.yaml \
+            --template-file file://codepipeline.yaml \
             --stack-name ${{ env.PROJECT_NAME }}-${{ env.ENVIRONMENT }}-pipeline \
             --parameter-overrides \
                 ProjectName=${{ env.PROJECT_NAME }} \
