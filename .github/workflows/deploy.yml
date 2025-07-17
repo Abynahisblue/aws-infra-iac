@@ -4,8 +4,7 @@ on:
   push:
     branches: [ main ]
     paths:
-      - 'aws-infra-iac/**'  # Path to your CFN templates
-      - '!.github/workflows/**'
+      - 'cloudformation/**'  # Fixed path to match your actual directory structure
   workflow_dispatch:  # Allow manual triggering
 
 env:
@@ -34,8 +33,13 @@ jobs:
       - name: Validate CloudFormation templates
         run: |
           for template in cloudformation/*.yaml; do
-            echo "Validating $template"
-            aws cloudformation validate-template --template-body file://$template
+            if [ -f "$template" ]; then
+              echo "Validating $template"
+              aws cloudformation validate-template --template-body file://$template
+            else
+              echo "No CloudFormation templates found in cloudformation/ directory"
+              exit 1
+            fi
           done
 
   deploy-infrastructure:
@@ -65,6 +69,13 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
           role-to-assume: ${{ secrets.AWS_IAM_ROLE_ARN }}
 
+      - name: Check if template exists
+        run: |
+          if [ ! -f "cloudformation/${{ matrix.template }}" ]; then
+            echo "Template cloudformation/${{ matrix.template }} not found"
+            exit 1
+          fi
+
       - name: Package and deploy template
         run: |
           # Generate unique name for changeset
@@ -84,18 +95,52 @@ jobs:
               --no-fail-on-empty-changeset
           else
             echo "Deploying ${{ matrix.template }}..."
-            aws cloudformation deploy \
-              --template-file cloudformation/${{ matrix.template }} \
-              --stack-name ${{ env.PROJECT_NAME }}-${{ env.ENVIRONMENT }}-$(basename ${{ matrix.template }} .yaml | tr '_' '-') \
-              --parameter-overrides \
-                  ProjectName=${{ env.PROJECT_NAME }} \
-                  Environment=${{ env.ENVIRONMENT }} \
-              --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM \
-              --no-fail-on-empty-changeset
+            STACK_NAME="${{ env.PROJECT_NAME }}-${{ env.ENVIRONMENT }}-$(basename ${{ matrix.template }} .yaml | tr '_' '-')"
+          
+            # Handle codepipeline template with additional parameters
+            if [[ "${{ matrix.template }}" == "codepipeline.yaml" ]]; then
+              aws cloudformation deploy \
+                --template-file cloudformation/${{ matrix.template }} \
+                --stack-name $STACK_NAME \
+                --parameter-overrides \
+                    ProjectName=${{ env.PROJECT_NAME }} \
+                    Environment=${{ env.ENVIRONMENT }} \
+                    GitHubOwner=${{ secrets.GITHUB_OWNER }} \
+                    GitHubRepo=${{ secrets.GITHUB_REPO }} \
+                    GitHubBranch=main \
+                    GitHubTokenSecret=${{ secrets.GITHUB_TOKEN_SECRET }} \
+                    ExistingArtifactsBucketName=${{ env.ARTIFACTS_BUCKET }} \
+                --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM \
+                --no-fail-on-empty-changeset
+            else
+              aws cloudformation deploy \
+                --template-file cloudformation/${{ matrix.template }} \
+                --stack-name $STACK_NAME \
+                --parameter-overrides \
+                    ProjectName=${{ env.PROJECT_NAME }} \
+                    Environment=${{ env.ENVIRONMENT }} \
+                --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM \
+                --no-fail-on-empty-changeset
+            fi
           fi
 
       - name: Verify stack deployment
         run: |
-          STACK_NAME=${{ env.PROJECT_NAME }}-${{ env.ENVIRONMENT }}-$(basename ${{ matrix.template }} .yaml | tr '_' '-')
-          aws cloudformation wait stack-create-complete --stack-name $STACK_NAME || \
-            (aws cloudformation describe-stack-events --stack-name $STACK_NAME | jq -r '.StackEvents[] | select(.ResourceStatus | contains("FAILED")) | .ResourceStatusReason' && exit 1)
+          if [[ "${{ matrix.template }}" == "vpc.yaml" ]]; then
+            STACK_NAME="${{ env.PROJECT_NAME }}-${{ env.ENVIRONMENT }}-vpc"
+          else
+            STACK_NAME="${{ env.PROJECT_NAME }}-${{ env.ENVIRONMENT }}-$(basename ${{ matrix.template }} .yaml | tr '_' '-')"
+          fi
+          
+          echo "Checking stack status for: $STACK_NAME"
+          
+          # Wait for stack to be in a stable state
+          aws cloudformation wait stack-deploy-complete --stack-name $STACK_NAME || {
+            echo "Stack deployment failed. Checking events..."
+            aws cloudformation describe-stack-events --stack-name $STACK_NAME \
+              --query 'StackEvents[?ResourceStatus==`CREATE_FAILED` || ResourceStatus==`UPDATE_FAILED`].[ResourceType,ResourceStatus,ResourceStatusReason]' \
+              --output table
+            exit 1
+          }
+          
+          echo "Stack $STACK_NAME deployed successfully"
