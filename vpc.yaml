@@ -38,6 +38,22 @@ Parameters:
     Default: '10.0.20.0/24'
     Description: 'CIDR block for private subnet in AZ2'
 
+  # New parameter for existing S3 bucket
+  ExistingImagesBucketName:
+    Type: String
+    Default: 'webapp-prod-images-314146322404-eu-central-1'
+    Description: 'Name of existing S3 bucket for images (leave empty to create new)'
+
+  # New parameter for existing ECR repository
+  ExistingECRRepositoryName:
+    Type: String
+    Default: 'webapp-prod-app'
+    Description: 'Name of existing ECR repository (leave empty to create new)'
+
+Conditions:
+  CreateImageBucket: !Equals [!Ref ExistingImagesBucketName, '']
+  CreateECRRepository: !Equals [!Ref ExistingECRRepositoryName, '']
+
 Resources:
   # VPC
   VPC:
@@ -289,9 +305,10 @@ Resources:
         - Key: Name
           Value: !Sub '${ProjectName}-${Environment}-ECS-SG'
 
-  # S3 Bucket for Images
+  # S3 Bucket for Images (only created if not using existing bucket)
   ImageBucket:
     Type: AWS::S3::Bucket
+    Condition: CreateImageBucket
     Properties:
       BucketName: !Sub '${ProjectName}-${Environment}-images-${AWS::AccountId}-${AWS::Region}'
       PublicAccessBlockConfiguration:
@@ -311,9 +328,10 @@ Resources:
         - Key: Project
           Value: !Ref ProjectName
 
-  # S3 Bucket Policy for Public Read Access
+  # S3 Bucket Policy for Public Read Access (only created if not using existing bucket)
   ImageBucketPolicy:
     Type: AWS::S3::BucketPolicy
+    Condition: CreateImageBucket
     Properties:
       Bucket: !Ref ImageBucket
       PolicyDocument:
@@ -329,10 +347,10 @@ Resources:
             Action: 's3:ListBucket'
             Resource: !GetAtt ImageBucket.Arn
 
-
-  # ECR Repository
+  # ECR Repository (only created if not using existing repository)
   ECRRepository:
     Type: AWS::ECR::Repository
+    Condition: CreateECRRepository
     Properties:
       RepositoryName: !Sub '${ProjectName}-${Environment}-app'
       ImageScanningConfiguration:
@@ -360,7 +378,6 @@ Resources:
           Value: !Sub '${ProjectName}-${Environment}-ECR'
         - Key: Project
           Value: !Ref ProjectName
-
 
   # ECS Cluster
   ECSCluster:
@@ -438,8 +455,14 @@ Resources:
                   - s3:DeleteObject
                   - s3:ListBucket
                 Resource:
-                  - !GetAtt ImageBucket.Arn
-                  - !Sub '${ImageBucket.Arn}/*'
+                  - !If
+                    - CreateImageBucket
+                    - !GetAtt ImageBucket.Arn
+                    - !Sub 'arn:aws:s3:::${ExistingImagesBucketName}'
+                  - !If
+                    - CreateImageBucket
+                    - !Sub '${ImageBucket.Arn}/*'
+                    - !Sub 'arn:aws:s3:::${ExistingImagesBucketName}/*'
       Tags:
         - Key: Name
           Value: !Sub '${ProjectName}-${Environment}-ECSTaskRole'
@@ -503,13 +526,19 @@ Outputs:
 
   ImageBucketName:
     Description: 'S3 Bucket Name for Images'
-    Value: !Ref ImageBucket
+    Value: !If
+      - CreateImageBucket
+      - !Ref ImageBucket
+      - !Ref ExistingImagesBucketName
     Export:
       Name: !Sub '${ProjectName}-${Environment}-ImageBucket-Name'
 
   ECRRepositoryURI:
     Description: 'ECR Repository URI'
-    Value: !Sub '${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${ECRRepository}'
+    Value: !If
+      - CreateECRRepository
+      - !Sub '${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${ECRRepository}'
+      - !Sub '${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${ExistingECRRepositoryName}'
     Export:
       Name: !Sub '${ProjectName}-${Environment}-ECR-URI'
 
