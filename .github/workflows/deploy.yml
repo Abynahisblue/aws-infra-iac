@@ -212,6 +212,7 @@ jobs:
                 GitHubRepo=aws-java-react-app \
                 GitHubBranch=main \
                 GitHubTokenSecret=github-token \
+                ExistingArtifactsBucketName=${{ env.ARTIFACTS_BUCKET }} \
             --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM \
             --no-fail-on-empty-changeset
 

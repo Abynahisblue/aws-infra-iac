@@ -35,33 +35,16 @@ Parameters:
     Default: 8080
     Description: 'Port your ECS container listens on'
 
+  ExistingArtifactsBucketName:
+    Type: String
+    Default: 'webapp-prod-codepipeline-artifacts-314146322404-eu-central-1'
+    Description: 'Name of existing S3 bucket for CodePipeline artifacts'
+
 Resources:
-  # S3 Bucket for CodePipeline Artifacts
-  CodePipelineArtifactsBucket:
-    Type: AWS::S3::Bucket
-    Properties:
-      BucketName: !Sub '${ProjectName}-${Environment}-codepipeline-artifacts-${AWS::AccountId}-${AWS::Region}'
-      BucketEncryption:
-        ServerSideEncryptionConfiguration:
-          - ServerSideEncryptionByDefault:
-              SSEAlgorithm: AES256
-      PublicAccessBlockConfiguration:
-        BlockPublicAcls: true
-        BlockPublicPolicy: true
-        IgnorePublicAcls: true
-        RestrictPublicBuckets: true
-      VersioningConfiguration:
-        Status: Enabled
-      LifecycleConfiguration:
-        Rules:
-          - Id: DeleteOldArtifacts
-            Status: Enabled
-            ExpirationInDays: 30
-      Tags:
-        - Key: Name
-          Value: !Sub '${ProjectName}-${Environment}-CodePipeline-Artifacts'
-        - Key: Project
-          Value: !Ref ProjectName
+  # The S3 Bucket for CodePipeline Artifacts resource is removed,
+  # as the template will now use an existing bucket provided by ExistingArtifactsBucketName.
+  # If you need to create a new bucket, you would re-add this resource
+  # and potentially use a condition to create it only if it doesn't exist.
 
   # CodeBuild Service Role
   CodeBuildServiceRole:
@@ -90,7 +73,8 @@ Resources:
                 Action:
                   - s3:GetObject
                   - s3:PutObject
-                Resource: !Sub '${CodePipelineArtifactsBucket.Arn}/*'
+                # Grant permissions to the existing artifacts bucket
+                Resource: !Sub 'arn:aws:s3:::${ExistingArtifactsBucketName}/*'
               - Effect: Allow
                 Action:
                   - ecr:GetAuthorizationToken
@@ -130,11 +114,11 @@ Resources:
                   - s3:GetObject
                   - s3:PutObject
                   - s3:GetObjectVersion
-                Resource: !Sub '${CodePipelineArtifactsBucket.Arn}/*'
+                Resource: !Sub 'arn:aws:s3:::${ExistingArtifactsBucketName}/*'
               - Effect: Allow
                 Action:
                   - s3:ListBucket
-                Resource: !GetAtt CodePipelineArtifactsBucket.Arn
+                Resource: !Sub 'arn:aws:s3:::${ExistingArtifactsBucketName}'
               - Effect: Allow
                 Action:
                   - codebuild:BatchGetBuilds
@@ -278,12 +262,15 @@ Resources:
                 - docker push $ECR_REPOSITORY_URI:latest
                 - docker push $ECR_REPOSITORY_URI:$IMAGE_TAG
                 - echo Writing image definitions file...
-                - printf '[{"name":"webapp-prod-container","imageUri":"%s"}]' "$ECR_REPOSITORY_URI:$IMAGE_TAG" > imagedefinitions.json
+                - printf '[{"name":"%s","imageUri":"%s"}]' "${PROJECT_NAME}-${ENVIRONMENT}-container" "$ECR_REPOSITORY_URI:$IMAGE_TAG" > imagedefinitions.json
                 - echo Processing appspec.yaml template...
                 - cp appspec.yaml.template appspec.yaml
-                - sed -i "s|<TASK_DEFINITION>|arn:aws:ecs:${AWS_DEFAULT_REGION}:${AWS_ACCOUNT_ID}:task-definition/webapp-prod-task|g" appspec.yaml
+                - sed -i "s|<TASK_DEFINITION>|arn:aws:ecs:${AWS_DEFAULT_REGION}:${AWS_ACCOUNT_ID}:task-definition/${PROJECT_NAME}-${ENVIRONMENT}-task|g" appspec.yaml
+                - sed -i "s|webapp-prod-container|${PROJECT_NAME}-${ENVIRONMENT}-container|g" appspec.yaml
                 - echo Processing taskdef.json template...
                 - cp taskdef.json.template taskdef.json
+                - sed -i "s|<PROJECT_NAME>|${PROJECT_NAME}|g" taskdef.json
+                - sed -i "s|<ENVIRONMENT>|${ENVIRONMENT}|g" taskdef.json
                 - sed -i "s|<AWS_ACCOUNT_ID>|${AWS_ACCOUNT_ID}|g" taskdef.json
                 - sed -i "s|<AWS_REGION>|${AWS_DEFAULT_REGION}|g" taskdef.json
                 - sed -i "s|<CONTAINER_PORT>|${CONTAINER_PORT}|g" taskdef.json
@@ -356,7 +343,7 @@ Resources:
       RoleArn: !GetAtt CodePipelineServiceRole.Arn
       ArtifactStore:
         Type: S3
-        Location: !Ref CodePipelineArtifactsBucket
+        Location: !Ref ExistingArtifactsBucketName
       Stages:
         - Name: Source
           Actions:
@@ -450,6 +437,6 @@ Outputs:
 
   ArtifactsBucketName:
     Description: 'S3 Artifacts Bucket Name'
-    Value: !Ref CodePipelineArtifactsBucket
+    Value: !Ref ExistingArtifactsBucketName
     Export:
       Name: !Sub '${ProjectName}-${Environment}-Artifacts-Bucket-Name'
