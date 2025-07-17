@@ -1,0 +1,101 @@
+name: CloudFormation Deployment
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'cloudformation/**'  # Path to your CFN templates
+      - '!.github/workflows/**'
+  workflow_dispatch:  # Allow manual triggering
+
+env:
+  AWS_REGION: eu-central-1
+  PROJECT_NAME: webapp
+  ENVIRONMENT: prod
+  ARTIFACTS_BUCKET: webapp-prod-codepipeline-artifacts-314146322404-eu-central-1
+
+jobs:
+  validate-templates:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: ${{ env.AWS_REGION }}
+          role-to-assume: ${{ secrets.AWS_IAM_ROLE_ARN }}
+
+      - name: Validate CloudFormation templates
+        run: |
+          for template in cloudformation/*.yaml; do
+            echo "Validating $template"
+            aws cloudformation validate-template --template-body file://$template
+          done
+
+  deploy-infrastructure:
+    needs: validate-templates
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+
+    strategy:
+      matrix:
+        template:
+          - vpc.yaml
+          - loadbalancer.yaml
+          - ecs-cluster-blue.yaml
+          - ecs-cluster-green.yaml
+          - codepipeline.yaml
+      fail-fast: false
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: ${{ env.AWS_REGION }}
+          role-to-assume: ${{ secrets.AWS_IAM_ROLE_ARN }}
+
+      - name: Package and deploy template
+        run: |
+          # Generate unique name for changeset
+          TIMESTAMP=$(date +%Y%m%d%H%M%S)
+          CHANGESET_NAME="changeset-$TIMESTAMP"
+          
+          # Special handling for VPC (needs to be deployed first)
+          if [[ "${{ matrix.template }}" == "vpc.yaml" ]]; then
+            echo "Deploying VPC template first..."
+            aws cloudformation deploy \
+              --template-file cloudformation/${{ matrix.template }} \
+              --stack-name ${{ env.PROJECT_NAME }}-${{ env.ENVIRONMENT }}-vpc \
+              --parameter-overrides \
+                  ProjectName=${{ env.PROJECT_NAME }} \
+                  Environment=${{ env.ENVIRONMENT }} \
+              --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM \
+              --no-fail-on-empty-changeset
+          else
+            echo "Deploying ${{ matrix.template }}..."
+            aws cloudformation deploy \
+              --template-file cloudformation/${{ matrix.template }} \
+              --stack-name ${{ env.PROJECT_NAME }}-${{ env.ENVIRONMENT }}-$(basename ${{ matrix.template }} .yaml | tr '_' '-') \
+              --parameter-overrides \
+                  ProjectName=${{ env.PROJECT_NAME }} \
+                  Environment=${{ env.ENVIRONMENT }} \
+              --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM \
+              --no-fail-on-empty-changeset
+          fi
+
+      - name: Verify stack deployment
+        run: |
+          STACK_NAME=${{ env.PROJECT_NAME }}-${{ env.ENVIRONMENT }}-$(basename ${{ matrix.template }} .yaml | tr '_' '-')
+          aws cloudformation wait stack-create-complete --stack-name $STACK_NAME || \
+            (aws cloudformation describe-stack-events --stack-name $STACK_NAME | jq -r '.StackEvents[] | select(.ResourceStatus | contains("FAILED")) | .ResourceStatusReason' && exit 1)
