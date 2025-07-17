@@ -35,16 +35,33 @@ Parameters:
     Default: 8080
     Description: 'Port your ECS container listens on'
 
-  ExistingArtifactsBucketName:
-    Type: String
-    Default: 'webapp-prod-codepipeline-artifacts-314146322404-eu-central-1'
-    Description: 'Name of existing S3 bucket for CodePipeline artifacts'
-
 Resources:
-  # The S3 Bucket for CodePipeline Artifacts resource is removed,
-  # as the template will now use an existing bucket provided by ExistingArtifactsBucketName.
-  # If you need to create a new bucket, you would re-add this resource
-  # and potentially use a condition to create it only if it doesn't exist.
+  # S3 Bucket for CodePipeline Artifacts
+  CodePipelineArtifactsBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub '${ProjectName}-${Environment}-codepipeline-artifacts-${AWS::AccountId}-${AWS::Region}'
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      VersioningConfiguration:
+        Status: Enabled
+      LifecycleConfiguration:
+        Rules:
+          - Id: DeleteOldArtifacts
+            Status: Enabled
+            ExpirationInDays: 30
+      Tags:
+        - Key: Name
+          Value: !Sub '${ProjectName}-${Environment}-CodePipeline-Artifacts'
+        - Key: Project
+          Value: !Ref ProjectName
 
   # CodeBuild Service Role
   CodeBuildServiceRole:
@@ -73,8 +90,7 @@ Resources:
                 Action:
                   - s3:GetObject
                   - s3:PutObject
-                # Grant permissions to the existing artifacts bucket
-                Resource: !Sub 'arn:aws:s3:::${ExistingArtifactsBucketName}/*'
+                Resource: !Sub '${CodePipelineArtifactsBucket.Arn}/*'
               - Effect: Allow
                 Action:
                   - ecr:GetAuthorizationToken
@@ -114,11 +130,11 @@ Resources:
                   - s3:GetObject
                   - s3:PutObject
                   - s3:GetObjectVersion
-                Resource: !Sub 'arn:aws:s3:::${ExistingArtifactsBucketName}/*'
+                Resource: !Sub '${CodePipelineArtifactsBucket.Arn}/*'
               - Effect: Allow
                 Action:
                   - s3:ListBucket
-                Resource: !Sub 'arn:aws:s3:::${ExistingArtifactsBucketName}'
+                Resource: !GetAtt CodePipelineArtifactsBucket.Arn
               - Effect: Allow
                 Action:
                   - codebuild:BatchGetBuilds
@@ -340,7 +356,7 @@ Resources:
       RoleArn: !GetAtt CodePipelineServiceRole.Arn
       ArtifactStore:
         Type: S3
-        Location: !Ref ExistingArtifactsBucketName
+        Location: !Ref CodePipelineArtifactsBucket
       Stages:
         - Name: Source
           Actions:
@@ -434,6 +450,6 @@ Outputs:
 
   ArtifactsBucketName:
     Description: 'S3 Artifacts Bucket Name'
-    Value: !Ref ExistingArtifactsBucketName
+    Value: !Ref CodePipelineArtifactsBucket
     Export:
       Name: !Sub '${ProjectName}-${Environment}-Artifacts-Bucket-Name'
