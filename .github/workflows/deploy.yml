@@ -4,7 +4,8 @@ on:
   push:
     branches: [ main ]
     paths:
-      - 'cloudformation/**'  # Fixed path to match your actual directory structure
+      - '**/*.yaml'  # Trigger on any YAML file changes in the repository
+      - '**/*.yml'   # Include both .yaml and .yml extensions
   workflow_dispatch:  # Allow manual triggering
 
 env:
@@ -32,14 +33,15 @@ jobs:
 
       - name: Validate CloudFormation templates
         run: |
-          for template in cloudformation/*.yaml; do
-            if [ -f "$template" ]; then
-              echo "Validating $template"
-              aws cloudformation validate-template --template-body file://$template
-            else
-              echo "No CloudFormation templates found in cloudformation/ directory"
-              exit 1
+          # Find all YAML files in the repository (CloudFormation templates)
+          find . -name "*.yaml" -o -name "*.yml" | grep -E "\.(yaml|yml)$" | while read template; do
+            # Skip workflow files
+            if [[ "$template" == *".github/workflows"* ]]; then
+              continue
             fi
+          
+            echo "Validating $template"
+            aws cloudformation validate-template --template-body file://$template
           done
 
   deploy-infrastructure:
@@ -71,8 +73,8 @@ jobs:
 
       - name: Check if template exists
         run: |
-          if [ ! -f "cloudformation/${{ matrix.template }}" ]; then
-            echo "Template cloudformation/${{ matrix.template }} not found"
+          if [ ! -f "${{ matrix.template }}" ]; then
+            echo "Template ${{ matrix.template }} not found"
             exit 1
           fi
 
@@ -86,7 +88,7 @@ jobs:
           if [[ "${{ matrix.template }}" == "vpc.yaml" ]]; then
             echo "Deploying VPC template first..."
             aws cloudformation deploy \
-              --template-file cloudformation/${{ matrix.template }} \
+              --template-file ${{ matrix.template }} \
               --stack-name ${{ env.PROJECT_NAME }}-${{ env.ENVIRONMENT }}-vpc \
               --parameter-overrides \
                   ProjectName=${{ env.PROJECT_NAME }} \
@@ -100,7 +102,7 @@ jobs:
             # Handle codepipeline template with additional parameters
             if [[ "${{ matrix.template }}" == "codepipeline.yaml" ]]; then
               aws cloudformation deploy \
-                --template-file cloudformation/${{ matrix.template }} \
+                --template-file ${{ matrix.template }} \
                 --stack-name $STACK_NAME \
                 --parameter-overrides \
                     ProjectName=${{ env.PROJECT_NAME }} \
@@ -114,7 +116,7 @@ jobs:
                 --no-fail-on-empty-changeset
             else
               aws cloudformation deploy \
-                --template-file cloudformation/${{ matrix.template }} \
+                --template-file ${{ matrix.template }} \
                 --stack-name $STACK_NAME \
                 --parameter-overrides \
                     ProjectName=${{ env.PROJECT_NAME }} \
