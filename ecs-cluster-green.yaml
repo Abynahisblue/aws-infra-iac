@@ -16,11 +16,12 @@ Parameters:
   ContainerImage:
     Type: String
     Description: 'ECR Container Image URI'
-    Default: 'nginx:latest'
+    # Use ECR repository URI with latest tag as default
+    Default: !Sub '${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/webapp-prod-app:latest'
 
   ContainerPort:
     Type: Number
-    Default: 8080 # Keep 8080 as your application will run on this port.
+    Default: 8080
     Description: 'Port on which the container listens'
 
   DeploymentEnvironment:
@@ -48,7 +49,7 @@ Resources:
       TaskRoleArn:
         Fn::ImportValue: !Sub '${ProjectName}-${Environment}-ECSTaskRole-ARN'
       ContainerDefinitions:
-        - Name: 'webapp-prod-container'
+        - Name: !Sub '${ProjectName}-${Environment}-container'
           Image: !Ref ContainerImage
           PortMappings:
             - ContainerPort: !Ref ContainerPort
@@ -72,7 +73,7 @@ Resources:
           HealthCheck:
             Command:
               - CMD-SHELL
-              - curl -f http://localhost:8080/ || exit 1 # This will hit your app on port 8080
+              - curl -f http://localhost:8080/actuator/health || exit 1
             Interval: 30
             Timeout: 5
             Retries: 3
@@ -105,13 +106,3 @@ Outputs:
     Value: !Ref ECSTaskDefinition
     Export:
       Name: !Sub '${ProjectName}-${Environment}-${DeploymentEnvironment}-TaskDefinition-ARN'
-
-# Removed:
-# ECSService
-# ApplicationAutoScalingRole
-# ApplicationAutoScalingTarget
-# CPUScalingPolicy
-# MemoryScalingPolicy
-# SNSTopic
-# HighCPUAlarm
-# LowCPUAlarm
