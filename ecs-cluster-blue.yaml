@@ -20,7 +20,7 @@ Parameters:
 
   ContainerPort:
     Type: Number
-    Default: '8080'
+    Default: 8080
     Description: 'Port on which the container listens'
 
   DesiredCount:
