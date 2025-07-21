@@ -16,7 +16,7 @@ Parameters:
   ContainerImage:
     Type: String
     Description: 'ECR Container Image URI'
-    Default: 'webapp-prod-app:latest'
+    Default: !Sub '${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/webapp-prod-app:latest'
 
   ContainerPort:
     Type: Number
@@ -67,7 +67,7 @@ Resources:
       TaskRoleArn:
         Fn::ImportValue: !Sub '${ProjectName}-${Environment}-ECSTaskRole-ARN'
       ContainerDefinitions:
-        - Name: 'webapp-prod-container'
+        - Name: !Sub '${ProjectName}-${Environment}-container'
           Image: !Ref ContainerImage
           PortMappings:
             - ContainerPort: !Ref ContainerPort
