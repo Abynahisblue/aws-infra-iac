@@ -16,11 +16,11 @@ Parameters:
   ContainerImage:
     Type: String
     Description: 'ECR Container Image URI'
-    Default: !Sub '${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/webapp-prod-app:latest'
+    Default: !Sub '314146322404.dkr.ecr.eu-central-1.amazonaws.com/webapp-prod-app:latest'
 
   ContainerPort:
     Type: Number
-    Default: '8080'
+    Default: 8080
     Description: 'Port on which the container listens'
 
   DesiredCount:

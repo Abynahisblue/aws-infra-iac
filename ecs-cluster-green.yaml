@@ -16,8 +16,7 @@ Parameters:
   ContainerImage:
     Type: String
     Description: 'ECR Container Image URI'
-    # Use ECR repository URI with latest tag as default
-    Default: !Sub '${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/webapp-prod-app:latest'
+    Default: !Sub '314146322404.dkr.ecr.eu-central-1.amazonaws.com/webapp-prod-app:latest'
 
   ContainerPort:
     Type: Number
