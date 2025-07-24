@@ -47,12 +47,12 @@ Resources:
       VpcId:
         Fn::ImportValue: !Sub '${ProjectName}-${Environment}-VPC-ID'
       TargetType: ip
-      HealthCheckPath: /
+      HealthCheckPath: /actuator/health
       HealthCheckProtocol: HTTP
       HealthCheckIntervalSeconds: 30
-      HealthCheckTimeoutSeconds: 5
+      HealthCheckTimeoutSeconds: 10
       HealthyThresholdCount: 2
-      UnhealthyThresholdCount: 3
+      UnhealthyThresholdCount: 2
       Tags:
         - Key: Name
           Value: !Sub '${ProjectName}-${Environment}-Blue-TG'
