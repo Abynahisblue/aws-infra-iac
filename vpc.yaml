@@ -300,26 +300,26 @@ Resources:
           Value: !Sub '${ProjectName}-${Environment}-ECS-SG'
 
   # S3 Bucket for Images
-  ImageBucket:
-    Type: AWS::S3::Bucket
-    Properties:
-      BucketName: !Sub '${ProjectName}-${Environment}-images-${AWS::AccountId}-${AWS::Region}'
-      PublicAccessBlockConfiguration:
-        BlockPublicAcls: false
-        BlockPublicPolicy: false
-        IgnorePublicAcls: false
-        RestrictPublicBuckets: false
-      CorsConfiguration:
-        CorsRules:
-          - AllowedHeaders: ['*']
-            AllowedMethods: [GET, PUT, POST, DELETE, HEAD]
-            AllowedOrigins: ['*']
-            MaxAge: 3600
-      Tags:
-        - Key: Name
-          Value: !Sub '${ProjectName}-${Environment}-ImageBucket'
-        - Key: Project
-          Value: !Ref ProjectName
+#  ImageBucket:
+#    Type: AWS::S3::Bucket
+#    Properties:
+#      BucketName: !Sub '${ProjectName}-${Environment}-images-${AWS::AccountId}-${AWS::Region}'
+#      PublicAccessBlockConfiguration:
+#        BlockPublicAcls: false
+#        BlockPublicPolicy: false
+#        IgnorePublicAcls: false
+#        RestrictPublicBuckets: false
+#      CorsConfiguration:
+#        CorsRules:
+#          - AllowedHeaders: ['*']
+#            AllowedMethods: [GET, PUT, POST, DELETE, HEAD]
+#            AllowedOrigins: ['*']
+#            MaxAge: 3600
+#      Tags:
+#        - Key: Name
+#          Value: !Sub '${ProjectName}-${Environment}-ImageBucket'
+#        - Key: Project
+#          Value: !Ref ProjectName
 
   # S3 Bucket Policy for Public Read Access
   ImageBucketPolicy:
