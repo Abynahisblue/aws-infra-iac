@@ -13,6 +13,16 @@ Parameters:
     AllowedValues: ['dev', 'staging', 'prod']
     Description: 'Environment name'
 
+  ExistingECRRepositoryName:
+    Type: String
+    Default: 'webapp-prod-app'
+    Description: 'Name of existing ECR repository'
+
+  ExistingImageBucketName:
+    Type: String
+    Default: 'webapp-prod-images-314146322404-eu-central-1'
+    Description: 'Name of existing S3 bucket for images'
+
   VpcCIDR:
     Type: String
     Default: '10.0.0.0/16'
@@ -330,36 +340,36 @@ Resources:
             Resource: !GetAtt ImageBucket.Arn
 
 
-  # ECR Repository
-  ECRRepository:
-    Type: AWS::ECR::Repository
-    Properties:
-      RepositoryName: !Sub '${ProjectName}-${Environment}-app'
-      ImageScanningConfiguration:
-        ScanOnPush: true
-      LifecyclePolicy:
-        LifecyclePolicyText: |
-          {
-            "rules": [
-              {
-                "rulePriority": 1,
-                "description": "Keep only the last 10 images",
-                "selection": {
-                  "tagStatus": "any",
-                  "countType": "imageCountMoreThan",
-                  "countNumber": 10
-                },
-                "action": {
-                  "type": "expire"
-                }
-              }
-            ]
-          }
-      Tags:
-        - Key: Name
-          Value: !Sub '${ProjectName}-${Environment}-ECR'
-        - Key: Project
-          Value: !Ref ProjectName
+#  # ECR Repository
+#  ECRRepository:
+#    Type: AWS::ECR::Repository
+#    Properties:
+#      RepositoryName: !Sub '${ProjectName}-${Environment}-app'
+#      ImageScanningConfiguration:
+#        ScanOnPush: true
+#      LifecyclePolicy:
+#        LifecyclePolicyText: |
+#          {
+#            "rules": [
+#              {
+#                "rulePriority": 1,
+#                "description": "Keep only the last 10 images",
+#                "selection": {
+#                  "tagStatus": "any",
+#                  "countType": "imageCountMoreThan",
+#                  "countNumber": 10
+#                },
+#                "action": {
+#                  "type": "expire"
+#                }
+#              }
+#            ]
+#          }
+#      Tags:
+#        - Key: Name
+#          Value: !Sub '${ProjectName}-${Environment}-ECR'
+#        - Key: Project
+#          Value: !Ref ProjectName
 
 
   # ECS Cluster
@@ -436,7 +446,7 @@ Resources:
                   - s3:GetObject
                   - s3:PutObject
                   - s3:DeleteObject
-                Resource: !Sub '${ImageBucket}/*'
+                Resource: !Sub 'arn:aws:s3:::${ExistingImageBucketName}/*'
       Tags:
         - Key: Name
           Value: !Sub '${ProjectName}-${Environment}-ECSTaskRole'
@@ -500,13 +510,13 @@ Outputs:
 
   ImageBucketName:
     Description: 'S3 Bucket Name for Images'
-    Value: !Ref ImageBucket
+    Value: !Ref ExistingImageBucketName
     Export:
       Name: !Sub '${ProjectName}-${Environment}-ImageBucket-Name'
 
   ECRRepositoryURI:
     Description: 'ECR Repository URI'
-    Value: !Sub '${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${ECRRepository}'
+    Value: !Sub '${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${ExistingECRRepositoryName}'
     Export:
       Name: !Sub '${ProjectName}-${Environment}-ECR-URI'
 
@@ -518,9 +528,15 @@ Outputs:
 
   ECSClusterArn:
     Description: 'ECS Cluster ARN'
-    Value: !GetAtt ECSCluster.Arn
+    Value: !Ref ECSCluster
     Export:
       Name: !Sub '${ProjectName}-${Environment}-ECS-Cluster-ARN'
+
+  ECSTaskExecutionRoleArn:
+    Description: 'ECS Task Execution Role ARN'
+    Value: !GetAtt ECSTaskExecutionRole.Arn
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-ECSTaskExecutionRole-ARN'
 
   ECSTaskRoleArn:
     Description: 'ECS Task Role ARN'
