@@ -270,8 +270,8 @@ Outputs:
     Export:
       Name: !Sub '${ProjectName}-${Environment}-SNS-Topic-ARN'
 
-  ECSServiceNameBase:
-    Description: 'ECS Service Base Name'
-    Value: !Sub '${ProjectName}-${Environment}-service'
-    Export:
-      Name: !Sub '${ProjectName}-${Environment}-ECS-Service-Name'
+#  ECSServiceNameBase:
+#    Description: 'ECS Service Base Name'
+#    Value: !Sub '${ProjectName}-${Environment}-service'
+#    Export:
+#      Name: !Sub '${ProjectName}-${Environment}-ECS-Service-Name'
