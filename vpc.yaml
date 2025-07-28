@@ -322,22 +322,22 @@ Resources:
 #          Value: !Ref ProjectName
 
   # S3 Bucket Policy for Public Read Access
-  ImageBucketPolicy:
-    Type: AWS::S3::BucketPolicy
-    Properties:
-      Bucket: !Ref ImageBucket
-      PolicyDocument:
-        Statement:
-          - Sid: PublicReadGetObject
-            Effect: Allow
-            Principal: '*'
-            Action: 's3:GetObject'
-            Resource: !Sub '${ImageBucket.Arn}/*'
-          - Sid: PublicListBucket
-            Effect: Allow
-            Principal: '*'
-            Action: 's3:ListBucket'
-            Resource: !GetAtt ImageBucket.Arn
+#  ImageBucketPolicy:
+#    Type: AWS::S3::BucketPolicy
+#    Properties:
+#      Bucket: !Ref ImageBucket
+#      PolicyDocument:
+#        Statement:
+#          - Sid: PublicReadGetObject
+#            Effect: Allow
+#            Principal: '*'
+#            Action: 's3:GetObject'
+#            Resource: !Sub '${ImageBucket.Arn}/*'
+#          - Sid: PublicListBucket
+#            Effect: Allow
+#            Principal: '*'
+#            Action: 's3:ListBucket'
+#            Resource: !GetAtt ImageBucket.Arn
 
 
 #  # ECR Repository
