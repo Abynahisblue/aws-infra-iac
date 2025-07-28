@@ -80,6 +80,10 @@ Resources:
                 Fn::ImportValue: !Sub '${ProjectName}-${Environment}-ImageBucket-Name'
             - Name: ENVIRONMENT
               Value: !Ref Environment
+            - Name: AWS_ACCESS_KEY_ID
+              Value: ''
+            - Name: AWS_SECRET_ACCESS_KEY
+              Value: ''
           LogConfiguration:
             LogDriver: awslogs
             Options:
