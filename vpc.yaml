@@ -436,10 +436,7 @@ Resources:
                   - s3:GetObject
                   - s3:PutObject
                   - s3:DeleteObject
-                  - s3:ListBucket
-                Resource:
-                  - !GetAtt ImageBucket.Arn
-                  - !Sub '${ImageBucket.Arn}/*'
+                Resource: !Sub '${ImageBucket}/*'
       Tags:
         - Key: Name
           Value: !Sub '${ProjectName}-${Environment}-ECSTaskRole'
@@ -521,15 +518,9 @@ Outputs:
 
   ECSClusterArn:
     Description: 'ECS Cluster ARN'
-    Value: !Ref ECSCluster
+    Value: !GetAtt ECSCluster.Arn
     Export:
       Name: !Sub '${ProjectName}-${Environment}-ECS-Cluster-ARN'
-
-  ECSTaskExecutionRoleArn:
-    Description: 'ECS Task Execution Role ARN'
-    Value: !GetAtt ECSTaskExecutionRole.Arn
-    Export:
-      Name: !Sub '${ProjectName}-${Environment}-ECSTaskExecutionRole-ARN'
 
   ECSTaskRoleArn:
     Description: 'ECS Task Role ARN'
