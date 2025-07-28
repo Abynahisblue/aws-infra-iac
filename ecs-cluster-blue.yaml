@@ -9,7 +9,7 @@ Parameters:
 
   Environment:
     Type: String
-    Default: 'prod'
+    Default: 'prod
     AllowedValues: ['dev', 'staging', 'prod']
     Description: 'Environment name'
 
@@ -250,7 +250,7 @@ Outputs:
     Description: 'ECS Service Name'
     Value: !Sub '${ProjectName}-${Environment}-service'
     Export:
-      Name: !Sub '${ProjectName}-${Environment}-Blue-Service-Name'
+      Name: !Sub '${ProjectName}-${Environment}-ECS-Service-Name'
 
   ECSTaskDefinitionArn:
     Description: 'ECS Task Definition ARN'
