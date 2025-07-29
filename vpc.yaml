@@ -540,21 +540,6 @@ Resources:
         - Key: Name
           Value: !Sub '${ProjectName}-${Environment}-PostgreSQL'
 
-  # Store credentials in Parameter Store
-  DBUsernameParameter:
-    Type: AWS::SSM::Parameter
-    Properties:
-      Name: !Sub '/${ProjectName}/${Environment}/db/username'
-      Type: String
-      Value: webapp_user
-
-  DBPasswordParameter:
-    Type: AWS::SSM::Parameter
-    Properties:
-      Name: !Sub '/${ProjectName}/${Environment}/db/password'
-      Type: String
-      Value: ChangeMe123!
-      Tier: Standard
 
   # Database Host Parameter
   DBHostParameter:
