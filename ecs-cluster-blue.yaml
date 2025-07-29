@@ -56,7 +56,7 @@ Resources:
   ECSTaskDefinition:
     Type: AWS::ECS::TaskDefinition
     Properties:
-      Family: !Sub '${ProjectName}-${Environment}-task'
+      Family: !Sub '${ProjectName}-${Environment}-task-v2'
       NetworkMode: awsvpc
       RequiresCompatibilities:
         - FARGATE
