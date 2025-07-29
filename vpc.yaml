@@ -524,7 +524,6 @@ Resources:
       DBInstanceIdentifier: !Sub '${ProjectName}-${Environment}-postgres'
       DBInstanceClass: db.t3.micro
       Engine: postgres
-      EngineVersion: '15.9'
       AllocatedStorage: 20
       StorageType: gp2
       MultiAZ: true
