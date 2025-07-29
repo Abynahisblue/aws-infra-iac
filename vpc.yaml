@@ -552,8 +552,9 @@ Resources:
     Type: AWS::SSM::Parameter
     Properties:
       Name: !Sub '/${ProjectName}/${Environment}/db/password'
-      Type: SecureString
+      Type: String
       Value: ChangeMe123!
+      Tier: Standard
 
   # Database Host Parameter
   DBHostParameter:
