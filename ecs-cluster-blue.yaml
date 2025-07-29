@@ -56,7 +56,7 @@ Resources:
   ECSTaskDefinition:
     Type: AWS::ECS::TaskDefinition
     Properties:
-      Family: !Sub '${ProjectName}-${Environment}-task-v2'
+      Family: !Sub '${ProjectName}-${Environment}-task'
       NetworkMode: awsvpc
       RequiresCompatibilities:
         - FARGATE
@@ -80,17 +80,10 @@ Resources:
                 Fn::ImportValue: !Sub '${ProjectName}-${Environment}-ImageBucket-Name'
             - Name: ENVIRONMENT
               Value: !Ref Environment
-            - Name: DB_NAME
-              Value: 'webapp'
-            - Name: DB_PORT
-              Value: '5432'
-          Secrets:
-            - Name: DB_HOST
-              ValueFrom: !Sub 'arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${ProjectName}/${Environment}/db/host'
-            - Name: DB_USERNAME
-              ValueFrom: !Sub 'arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${ProjectName}/${Environment}/db/username'
-            - Name: DB_PASSWORD
-              ValueFrom: !Sub 'arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${ProjectName}/${Environment}/db/password'
+#            - Name: AWS_ACCESS_KEY_ID
+#              Value: ''
+#            - Name: AWS_SECRET_ACCESS_KEY
+#              Value: ''
           LogConfiguration:
             LogDriver: awslogs
             Options:
@@ -120,7 +113,7 @@ Resources:
       ServiceName: !Sub '${ProjectName}-${Environment}-service'
       Cluster:
         Fn::ImportValue: !Sub '${ProjectName}-${Environment}-ECS-Cluster-ARN'
-#      TaskDefinition: !Ref ECSTaskDefinition
+      TaskDefinition: !Ref ECSTaskDefinition
       DesiredCount: !Ref DesiredCount
       LaunchType: FARGATE
       DeploymentController:
