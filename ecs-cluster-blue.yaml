@@ -80,6 +80,16 @@ Resources:
                 Fn::ImportValue: !Sub '${ProjectName}-${Environment}-ImageBucket-Name'
             - Name: ENVIRONMENT
               Value: !Ref Environment
+            - Name: DB_HOST
+              Value: !Sub '{{resolve:ssm:/${ProjectName}/${Environment}/db/host}}'
+            - Name: DB_USERNAME
+              Value: !Sub '{{resolve:ssm:/${ProjectName}/${Environment}/db/username}}'
+            - Name: DB_PASSWORD
+              Value: !Sub '{{resolve:ssm-secure:/${ProjectName}/${Environment}/db/password}}'
+            - Name: DB_NAME
+              Value: 'webapp'
+            - Name: DB_PORT
+              Value: '5432'
 #            - Name: AWS_ACCESS_KEY_ID
 #              Value: ''
 #            - Name: AWS_SECRET_ACCESS_KEY
