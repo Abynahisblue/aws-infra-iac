@@ -505,6 +505,18 @@ Resources:
         - Key: Name
           Value: !Sub '${ProjectName}-${Environment}-RDS-SG'
 
+  # Create RDS Secret
+  RDSSecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: !Sub '${ProjectName}-${Environment}-rds-credentials'
+      Description: 'RDS PostgreSQL credentials'
+      GenerateSecretString:
+        SecretStringTemplate: '{"username": "webapp_user"}'
+        GenerateStringKey: 'password'
+        PasswordLength: 8
+        ExcludeCharacters: '"@/\'
+
   # RDS PostgreSQL Database
   PostgreSQLDatabase:
     Type: AWS::RDS::DBInstance
@@ -517,8 +529,8 @@ Resources:
       StorageType: gp2
       MultiAZ: true
       DBName: webapp
-      MasterUsername: !Sub '{{resolve:ssm-secure:/${ProjectName}/${Environment}/db/username}}'
-      MasterUserPassword: !Sub '{{resolve:ssm-secure:/${ProjectName}/${Environment}/db/password}}'
+      MasterUsername: webapp_user
+      MasterUserPassword: ChangeMe123!
       VPCSecurityGroups:
         - !Ref RDSSecurityGroup
       DBSubnetGroupName: !Ref DBSubnetGroup
@@ -528,6 +540,20 @@ Resources:
         - Key: Name
           Value: !Sub '${ProjectName}-${Environment}-PostgreSQL'
 
+  # Store credentials in Parameter Store
+  DBUsernameParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub '/${ProjectName}/${Environment}/db/username'
+      Type: String
+      Value: webapp_user
+
+  DBPasswordParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub '/${ProjectName}/${Environment}/db/password'
+      Type: SecureString
+      Value: ChangeMe123!
 
   # Database Host Parameter
   DBHostParameter:
