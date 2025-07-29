@@ -447,6 +447,16 @@ Resources:
                   - s3:PutObject
                   - s3:DeleteObject
                 Resource: !Sub 'arn:aws:s3:::${ExistingImageBucketName}/*'
+        - PolicyName: ParameterStoreAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ssm:GetParameter
+                  - ssm:GetParameters
+                  - ssm:GetParametersByPath
+                Resource: !Sub 'arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${ProjectName}/${Environment}/*'
       Tags:
         - Key: Name
           Value: !Sub '${ProjectName}-${Environment}-ECSTaskRole'
@@ -464,6 +474,69 @@ Resources:
           Value: !Sub '${ProjectName}-${Environment}-LogGroup'
         - Key: Project
           Value: !Ref ProjectName
+
+  # Add RDS Subnet Group
+  DBSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupName: !Sub '${ProjectName}-${Environment}-db-subnet-group'
+      DBSubnetGroupDescription: 'Subnet group for RDS database'
+      SubnetIds:
+        - !Ref PrivateSubnet1
+        - !Ref PrivateSubnet2
+      Tags:
+        - Key: Name
+          Value: !Sub '${ProjectName}-${Environment}-DB-SubnetGroup'
+
+  # RDS Security Group
+  RDSSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: !Sub '${ProjectName}-${Environment}-RDS-SG'
+      GroupDescription: 'Security group for RDS PostgreSQL'
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 5432
+          ToPort: 5432
+          SourceSecurityGroupId: !Ref ECSSecurityGroup
+          Description: 'PostgreSQL from ECS'
+      Tags:
+        - Key: Name
+          Value: !Sub '${ProjectName}-${Environment}-RDS-SG'
+
+  # RDS PostgreSQL Database
+  PostgreSQLDatabase:
+    Type: AWS::RDS::DBInstance
+    Properties:
+      DBInstanceIdentifier: !Sub '${ProjectName}-${Environment}-postgres'
+      DBInstanceClass: db.t3.micro
+      Engine: postgres
+      EngineVersion: '13.7'
+      AllocatedStorage: 20
+      StorageType: gp2
+      MultiAZ: true
+      DBName: webapp
+      MasterUsername: !Sub '{{resolve:ssm-secure:/${ProjectName}/${Environment}/db/username}}'
+      MasterUserPassword: !Sub '{{resolve:ssm-secure:/${ProjectName}/${Environment}/db/password}}'
+      VPCSecurityGroups:
+        - !Ref RDSSecurityGroup
+      DBSubnetGroupName: !Ref DBSubnetGroup
+      BackupRetentionPeriod: 7
+      DeletionProtection: false
+      Tags:
+        - Key: Name
+          Value: !Sub '${ProjectName}-${Environment}-PostgreSQL'
+
+
+  # Database Host Parameter
+  DBHostParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub '/${ProjectName}/${Environment}/db/host'
+      Type: String
+      Value: !GetAtt PostgreSQLDatabase.Endpoint.Address
+      Description: 'Database host endpoint'
 
 Outputs:
   VPCId:
