@@ -120,7 +120,7 @@ Resources:
       ServiceName: !Sub '${ProjectName}-${Environment}-service'
       Cluster:
         Fn::ImportValue: !Sub '${ProjectName}-${Environment}-ECS-Cluster-ARN'
-      TaskDefinition: !Ref ECSTaskDefinition
+#      TaskDefinition: !Ref ECSTaskDefinition
       DesiredCount: !Ref DesiredCount
       LaunchType: FARGATE
       DeploymentController:
