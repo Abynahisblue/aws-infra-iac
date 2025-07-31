@@ -60,7 +60,7 @@ Resources:
       NetworkMode: awsvpc
       RequiresCompatibilities:
         - FARGATE
-      Cpu: '1024'
+      Cpu: '1024'ef ContainerImage
       Memory: '2048'
       ExecutionRoleArn:
         Fn::ImportValue: !Sub '${ProjectName}-${Environment}-ECSTaskExecutionRole-ARN'
@@ -68,7 +68,7 @@ Resources:
         Fn::ImportValue: !Sub '${ProjectName}-${Environment}-ECSTaskRole-ARN'
       ContainerDefinitions:
         - Name: !Sub '${ProjectName}-${Environment}-container'
-          Image: !Ref ContainerImage
+          Image: !R
           PortMappings:
             - ContainerPort: !Ref ContainerPort
               Protocol: tcp
@@ -113,7 +113,7 @@ Resources:
       ServiceName: !Sub '${ProjectName}-${Environment}-service'
       Cluster:
         Fn::ImportValue: !Sub '${ProjectName}-${Environment}-ECS-Cluster-ARN'
-#      TaskDefinition: !Ref ECSTaskDefinition
+      TaskDefinition: !Ref ECSTaskDefinition
       DesiredCount: !Ref DesiredCount
       LaunchType: FARGATE
       DeploymentController:
