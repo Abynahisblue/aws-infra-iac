@@ -41,12 +41,6 @@ Parameters:
     Description: 'Name of existing S3 bucket for CodePipeline artifacts'
 
 Resources:
-  # The S3 Bucket for CodePipeline Artifacts resource is removed,
-  # as the template will now use an existing bucket provided by ExistingArtifactsBucketName.
-  # If you need to create a new bucket, you would re-add this resource
-  # and potentially use a condition to create it only if it doesn't exist.
-
-  # CodeBuild Service Role
   CodeBuildServiceRole:
     Type: AWS::IAM::Role
     Properties:
@@ -73,7 +67,6 @@ Resources:
                 Action:
                   - s3:GetObject
                   - s3:PutObject
-                # Grant permissions to the existing artifacts bucket
                 Resource: !Sub 'arn:aws:s3:::${ExistingArtifactsBucketName}/*'
               - Effect: Allow
                 Action:
@@ -92,7 +85,6 @@ Resources:
         - Key: Project
           Value: !Ref ProjectName
 
-  # CodePipeline Service Role
   CodePipelineServiceRole:
     Type: AWS::IAM::Role
     Properties:
@@ -164,7 +156,6 @@ Resources:
         - Key: Project
           Value: !Ref ProjectName
 
-  # CodeDeploy Service Role
   CodeDeployServiceRole:
     Type: AWS::IAM::Role
     Properties:
@@ -208,7 +199,6 @@ Resources:
         - Key: Project
           Value: !Ref ProjectName
 
-  # CodeBuild Project
   CodeBuildProject:
     Type: AWS::CodeBuild::Project
     Properties:
@@ -256,26 +246,26 @@ Resources:
                 - docker build -t $ECR_REPOSITORY_URI:latest .
                 - docker tag $ECR_REPOSITORY_URI:latest $ECR_REPOSITORY_URI:$IMAGE_TAG
             post_build:
-            commands:
-              - echo Build completed on `date`
-              - echo Pushing the Docker images...
-              - docker push $ECR_REPOSITORY_URI:latest
-              - docker push $ECR_REPOSITORY_URI:$IMAGE_TAG
-              - echo Writing image definitions file...
-              - printf '[{"name":"%s","imageUri":"%s"}]' "${PROJECT_NAME}-${ENVIRONMENT}-container" "$ECR_REPOSITORY_URI:$IMAGE_TAG" > imagedefinitions.json
-              - echo Processing appspec.yaml template...
-              - cp appspec.yaml.template appspec.yaml
-              - sed -i "s|<TASK_DEFINITION>|arn:aws:ecs:${AWS_DEFAULT_REGION}:${AWS_ACCOUNT_ID}:task-definition/${PROJECT_NAME}-${ENVIRONMENT}-task|g" appspec.yaml
-              - sed -i "s|<PROJECT_NAME>|${PROJECT_NAME}|g" appspec.yaml
-              - sed -i "s|<ENVIRONMENT>|${ENVIRONMENT}|g" appspec.yaml
-              - sed -i "s|<CONTAINER_PORT>|${CONTAINER_PORT}|g" appspec.yaml
-              - echo Processing taskdef.json template...
-              - cp taskdef.json.template taskdef.json
-              - sed -i "s|<PROJECT_NAME>|${PROJECT_NAME}|g" taskdef.json
-              - sed -i "s|<ENVIRONMENT>|${ENVIRONMENT}|g" taskdef.json
-              - sed -i "s|<AWS_ACCOUNT_ID>|${AWS_ACCOUNT_ID}|g" taskdef.json
-              - sed -i "s|<AWS_REGION>|${AWS_DEFAULT_REGION}|g" taskdef.json
-              - sed -i "s|<CONTAINER_PORT>|${CONTAINER_PORT}|g" taskdef.json
+              commands:
+                - echo Build completed on `date`
+                - echo Pushing the Docker images...
+                - docker push $ECR_REPOSITORY_URI:latest
+                - docker push $ECR_REPOSITORY_URI:$IMAGE_TAG
+                - echo Writing image definitions file...
+                - printf '[{"name":"%s","imageUri":"%s"}]' "${PROJECT_NAME}-${ENVIRONMENT}-container" "$ECR_REPOSITORY_URI:$IMAGE_TAG" > imagedefinitions.json
+                - echo Processing appspec.yaml template...
+                - cp appspec.yaml.template appspec.yaml
+                - sed -i "s|<TASK_DEFINITION>|arn:aws:ecs:${AWS_DEFAULT_REGION}:${AWS_ACCOUNT_ID}:task-definition/${PROJECT_NAME}-${ENVIRONMENT}-task|g" appspec.yaml
+                - sed -i "s|<PROJECT_NAME>|${PROJECT_NAME}|g" appspec.yaml
+                - sed -i "s|<ENVIRONMENT>|${ENVIRONMENT}|g" appspec.yaml
+                - sed -i "s|<CONTAINER_PORT>|${CONTAINER_PORT}|g" appspec.yaml
+                - echo Processing taskdef.json template...
+                - cp taskdef.json.template taskdef.json
+                - sed -i "s|<PROJECT_NAME>|${PROJECT_NAME}|g" taskdef.json
+                - sed -i "s|<ENVIRONMENT>|${ENVIRONMENT}|g" taskdef.json
+                - sed -i "s|<AWS_ACCOUNT_ID>|${AWS_ACCOUNT_ID}|g" taskdef.json
+                - sed -i "s|<AWS_REGION>|${AWS_DEFAULT_REGION}|g" taskdef.json
+                - sed -i "s|<CONTAINER_PORT>|${CONTAINER_PORT}|g" taskdef.json
           artifacts:
             files:
               - imagedefinitions.json
@@ -287,7 +277,6 @@ Resources:
         - Key: Project
           Value: !Ref ProjectName
 
-  # CodeDeploy Application
   CodeDeployApplication:
     Type: AWS::CodeDeploy::Application
     Properties:
@@ -299,7 +288,6 @@ Resources:
         - Key: Project
           Value: !Ref ProjectName
 
-  # CodeDeploy Deployment Group
   CodeDeployDeploymentGroup:
     Type: AWS::CodeDeploy::DeploymentGroup
     Properties:
@@ -337,7 +325,6 @@ Resources:
         - Key: Project
           Value: !Ref ProjectName
 
-  # CodePipeline
   CodePipeline:
     Type: AWS::CodePipeline::Pipeline
     Properties:
@@ -403,7 +390,6 @@ Resources:
         - Key: Project
           Value: !Ref ProjectName
 
-  # GitHub Webhook
   GitHubWebhook:
     Type: AWS::CodePipeline::Webhook
     Properties:
