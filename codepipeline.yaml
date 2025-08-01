@@ -383,8 +383,8 @@ Resources:
                 TaskDefinitionTemplatePath: taskdef.json
                 AppSpecTemplateArtifact: BuildOutput
                 AppSpecTemplatePath: appspec.yaml
-                Image1ArtifactName: BuildOutput
-                Image1ContainerName: !Sub '${ProjectName}-${Environment}-container'
+#                Image1ArtifactName: BuildOutput
+#                Image1ContainerName: !Sub '${ProjectName}-${Environment}-container'
               InputArtifacts:
                 - Name: BuildOutput
               Region: !Ref AWS::Region
