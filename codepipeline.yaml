@@ -220,8 +220,8 @@ Resources:
           - Name: ECR_REPOSITORY_URI
             Value:
               Fn::ImportValue: !Sub '${ProjectName}-${Environment}-ECR-URI'
-          - Name: IMAGE_TAG
-            Value: latest
+          - Name: ECR_REPOSITORY_NAME
+            Value: !Sub '${ProjectName}-${Environment}-app'
           - Name: PROJECT_NAME
             Value: !Ref ProjectName
           - Name: ENVIRONMENT
@@ -237,20 +237,17 @@ Resources:
               commands:
                 - echo Logging in to Amazon ECR...
                 - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com
-                - COMMIT_HASH=$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | cut -c 1-7)
-                - IMAGE_TAG=${COMMIT_HASH:=latest}
+                - echo Getting latest image from ECR...
+                - IMAGE_TAG=$(aws ecr describe-images --repository-name $ECR_REPOSITORY_NAME --query 'sort_by(imageDetails,& imagePushedAt)[-1].imageTags[0]' --output text)
+                - echo "Using image tag: $IMAGE_TAG"
             build:
               commands:
                 - echo Build started on `date`
-                - echo Building the Docker image...
-                - docker build -t $ECR_REPOSITORY_URI:latest .
-                - docker tag $ECR_REPOSITORY_URI:latest $ECR_REPOSITORY_URI:$IMAGE_TAG
+                - echo Skipping Docker build - using pre-built image from ECR
+                - echo "Image URI: $ECR_REPOSITORY_URI:$IMAGE_TAG"
             post_build:
               commands:
                 - echo Build completed on `date`
-                - echo Pushing the Docker images...
-                - docker push $ECR_REPOSITORY_URI:latest
-                - docker push $ECR_REPOSITORY_URI:$IMAGE_TAG
                 - echo Writing image definitions file...
                 - printf '[{"name":"%s","imageUri":"%s"}]' "${PROJECT_NAME}-${ENVIRONMENT}-container" "$ECR_REPOSITORY_URI:$IMAGE_TAG" > imagedefinitions.json
                 - echo Processing appspec.yaml template...
@@ -266,6 +263,7 @@ Resources:
                 - sed -i "s|<AWS_ACCOUNT_ID>|${AWS_ACCOUNT_ID}|g" taskdef.json
                 - sed -i "s|<AWS_REGION>|${AWS_DEFAULT_REGION}|g" taskdef.json
                 - sed -i "s|<CONTAINER_PORT>|${CONTAINER_PORT}|g" taskdef.json
+                - sed -i "s|<S3_BUCKET_NAME>|webapp-prod-images-314146322404-eu-central-1|g" taskdef.json
           artifacts:
             files:
               - imagedefinitions.json
