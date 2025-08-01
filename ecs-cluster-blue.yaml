@@ -55,9 +55,6 @@ Conditions:
 Resources:
   ECSTaskDefinition:
     Type: AWS::ECS::TaskDefinition
-    DependsOn:
-      - ECSTaskExecutionRole
-      - ECSTaskRole
     Properties:
       Family: !Sub '${ProjectName}-${Environment}-task'
       NetworkMode: awsvpc
