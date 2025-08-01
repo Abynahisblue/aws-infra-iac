@@ -229,6 +229,9 @@ Resources:
             Value: !Ref Environment
           - Name: CONTAINER_PORT
             Value: !Ref ContainerPort
+          - Name: S3_BUCKET_NAME
+            Value:
+              Fn::ImportValue: !Sub '${ProjectName}-${Environment}-ImageBucket-Name'
       Source:
         Type: CODEPIPELINE
         BuildSpec: |
@@ -260,6 +263,7 @@ Resources:
                 - cp taskdef.json.template taskdef.json
                 - sed -i "s|<PROJECT_NAME>|${PROJECT_NAME}|g" taskdef.json
                 - sed -i "s|<ENVIRONMENT>|${ENVIRONMENT}|g" taskdef.json
+                - sed -i "s|<S3_BUCKET_NAME>|${S3_BUCKET_NAME}|g" taskdef.json
                 - sed -i "s|<AWS_ACCOUNT_ID>|${AWS_ACCOUNT_ID}|g" taskdef.json
                 - sed -i "s|<AWS_REGION>|${AWS_DEFAULT_REGION}|g" taskdef.json
                 - sed -i "s|<CONTAINER_PORT>|${CONTAINER_PORT}|g" taskdef.json
