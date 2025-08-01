@@ -111,10 +111,6 @@ Resources:
 
   ECSService:
     Type: AWS::ECS::Service
-    DependsOn:
-      - ECSCluster
-      - ECSTaskDefinition
-      - ALBListener
     Properties:
       HealthCheckGracePeriodSeconds: 120
       ServiceName: !Sub '${ProjectName}-${Environment}-service'
