@@ -265,6 +265,11 @@ Resources:
                 - sed -i "s|<AWS_REGION>|${AWS_DEFAULT_REGION}|g" taskdef.json
                 - sed -i "s|<CONTAINER_PORT>|${CONTAINER_PORT}|g" taskdef.json
                 - sed -i "s|<S3_BUCKET_NAME>|webapp-prod-images-314146322404-eu-central-1|g" taskdef.json
+                - sed -i "s|IMAGE1_NAME|$ECR_REPOSITORY_URI:$IMAGE_TAG|g" taskdef.json
+                - echo "Contents of imagedefinitions.json:"
+                - cat imagedefinitions.json
+                - echo "Contents of taskdef.json:"
+                - cat taskdef.json
           artifacts:
             files:
               - imagedefinitions.json
