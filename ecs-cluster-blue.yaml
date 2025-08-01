@@ -55,6 +55,9 @@ Conditions:
 Resources:
   ECSTaskDefinition:
     Type: AWS::ECS::TaskDefinition
+    DependsOn:
+      - ECSTaskExecutionRole
+      - ECSTaskRole
     Properties:
       Family: !Sub '${ProjectName}-${Environment}-task'
       NetworkMode: awsvpc
@@ -99,7 +102,7 @@ Resources:
             Interval: 30
             Timeout: 5
             Retries: 3
-            StartPeriod: 120
+            StartPeriod: 60
       Tags:
         - Key: Name
           Value: !Sub '${ProjectName}-${Environment}-TaskDefinition'
@@ -108,6 +111,10 @@ Resources:
 
   ECSService:
     Type: AWS::ECS::Service
+    DependsOn:
+      - ECSCluster
+      - ECSTaskDefinition
+      - ALBListener
     Properties:
       HealthCheckGracePeriodSeconds: 120
       ServiceName: !Sub '${ProjectName}-${Environment}-service'
