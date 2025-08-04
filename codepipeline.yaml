@@ -205,6 +205,7 @@ Resources:
 
   ECRImagePushEventRule:
     Type: AWS::Events::Rule
+    DependsOn: CodePipeline
     Properties:
       Name: !Sub 'ECRImagePushEventRule-${ProjectName}-${Environment}'
       Description: 'Rule to trigger CodePipeline on ECR image push'
@@ -223,7 +224,7 @@ Resources:
           image-tag:
             - latest
       Targets:
-        - Arn: !Sub 'arn:aws:codepipeline:${AWS::Region}:${AWS::AccountId}:pipeline/${CodePipeline}'
+        - Arn: !Sub 'arn:aws:codepipeline:${AWS::Region}:${AWS::AccountId}:pipeline/${ProjectName}-${Environment}-pipeline'
           Id: "CodePipelineTrigger"
           RoleArn: !GetAtt CodePipelineEventRole.Arn
 
