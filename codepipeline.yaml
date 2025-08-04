@@ -43,9 +43,12 @@ Resources:
               - Effect: Allow
                 Action:
                   - s3:GetObject
-                  - s3:PutObject
                   - s3:GetObjectVersion
-                Resource: !Sub 'arn:aws:s3:::${ExistingArtifactsBucketName}/*'
+                  - s3:PutObject
+                  - s3:GetBucketVersioning
+                Resource: 
+                  - !Sub 'arn:aws:s3:::${ExistingArtifactsBucketName}'
+                  - !Sub 'arn:aws:s3:::${ExistingArtifactsBucketName}/*'
               - Effect: Allow
                 Action:
                   - s3:ListBucket
