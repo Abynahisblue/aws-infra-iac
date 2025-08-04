@@ -58,6 +58,9 @@ Resources:
                   - codedeploy:GetDeployment
                   - codedeploy:GetDeploymentConfig
                   - codedeploy:RegisterApplicationRevision
+                  - codedeploy:StopDeployment
+                  - codedeploy:GetDeploymentTarget
+                  - codedeploy:ListDeploymentTargets
                 Resource: '*'
               - Effect: Allow
                 Action:
@@ -74,6 +77,7 @@ Resources:
                 Resource: 
                   - Fn::ImportValue: !Sub '${ProjectName}-${Environment}-ECSTaskExecutionRole-ARN'
                   - Fn::ImportValue: !Sub '${ProjectName}-${Environment}-ECSTaskRole-ARN'
+                  - !GetAtt CodeDeployServiceRole.Arn
               - Effect: Allow
                 Action:
                   - ecr:DescribeImages
