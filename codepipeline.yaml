@@ -202,6 +202,11 @@ Resources:
         - Arn: !Sub 'arn:aws:codepipeline:${AWS::Region}:${AWS::AccountId}:pipeline/${CodePipeline}'
           Id: "CodePipelineTrigger"
           RoleArn: !GetAtt CodePipelineEventRole.Arn
+          InputTransformer:
+            InputPathsMap:
+              repository: "$.detail.repository-name"
+              tag: "$.detail.image-tag"
+            InputTemplate: '{"repository": "<repository>", "tag": "<tag>"}'
 
   CodePipelineEventRole:
     Type: AWS::IAM::Role
