@@ -13,23 +13,6 @@ Parameters:
     AllowedValues: ['dev', 'staging', 'prod']
     Description: 'Environment name'
 
-  GitHubOwner:
-    Type: String
-    Description: 'GitHub repository owner'
-
-  GitHubRepo:
-    Type: String
-    Description: 'GitHub repository name'
-
-  GitHubBranch:
-    Type: String
-    Default: 'main'
-    Description: 'GitHub branch name'
-
-  GitHubTokenSecret:
-    Type: String
-    Description: 'AWS Secrets Manager secret name containing GitHub token'
-
   ContainerPort:
     Type: Number
     Default: 8080
@@ -41,51 +24,6 @@ Parameters:
     Description: 'Name of existing S3 bucket for CodePipeline artifacts'
 
 Resources:
-  CodeBuildServiceRole:
-    Type: AWS::IAM::Role
-    Properties:
-      RoleName: !Sub '${ProjectName}-${Environment}-CodeBuild-Role'
-      AssumeRolePolicyDocument:
-        Version: '2012-10-17'
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service: codebuild.amazonaws.com
-            Action: sts:AssumeRole
-      Policies:
-        - PolicyName: CodeBuildPolicy
-          PolicyDocument:
-            Version: '2012-10-17'
-            Statement:
-              - Effect: Allow
-                Action:
-                  - logs:CreateLogGroup
-                  - logs:CreateLogStream
-                  - logs:PutLogEvents
-                Resource: !Sub 'arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/codebuild/${ProjectName}-${Environment}-*'
-              - Effect: Allow
-                Action:
-                  - s3:GetObject
-                  - s3:PutObject
-                Resource: !Sub 'arn:aws:s3:::${ExistingArtifactsBucketName}/*'
-              - Effect: Allow
-                Action:
-                  - ecr:GetAuthorizationToken
-                  - ecr:BatchCheckLayerAvailability
-                  - ecr:GetDownloadUrlForLayer
-                  - ecr:BatchGetImage
-                  - ecr:DescribeImages
-                  - ecr:InitiateLayerUpload
-                  - ecr:UploadLayerPart
-                  - ecr:CompleteLayerUpload
-                  - ecr:PutImage
-                Resource: '*'
-      Tags:
-        - Key: Name
-          Value: !Sub '${ProjectName}-${Environment}-CodeBuild-Role'
-        - Key: Project
-          Value: !Ref ProjectName
-
   CodePipelineServiceRole:
     Type: AWS::IAM::Role
     Properties:
@@ -114,11 +52,6 @@ Resources:
                 Resource: !Sub 'arn:aws:s3:::${ExistingArtifactsBucketName}'
               - Effect: Allow
                 Action:
-                  - codebuild:BatchGetBuilds
-                  - codebuild:StartBuild
-                Resource: !GetAtt CodeBuildProject.Arn
-              - Effect: Allow
-                Action:
                   - codedeploy:CreateDeployment
                   - codedeploy:GetApplication
                   - codedeploy:GetApplicationRevision
@@ -129,33 +62,11 @@ Resources:
               - Effect: Allow
                 Action:
                   - ecs:DescribeServices
-                  - ecs:DescribeTaskDefinition
-                  - ecs:DescribeTasks
-                  - ecs:ListTasks
-                  - ecs:RegisterTaskDefinition
-                  - ecs:UpdateService
                 Resource: '*'
               - Effect: Allow
                 Action:
                   - iam:PassRole
                 Resource: '*'
-              - Effect: Allow
-                Action:
-                  - secretsmanager:GetSecretValue
-                Resource: !Sub 'arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:${GitHubTokenSecret}*'
-              - Effect: Allow
-                Action:
-                  - elasticloadbalancing:DescribeTargetGroups
-                  - elasticloadbalancing:DescribeListeners
-                  - elasticloadbalancing:ModifyListener
-                  - elasticloadbalancing:DescribeRules
-                  - elasticloadbalancing:ModifyRule
-                Resource: '*'
-      Tags:
-        - Key: Name
-          Value: !Sub '${ProjectName}-${Environment}-CodePipeline-Role'
-        - Key: Project
-          Value: !Ref ProjectName
 
   CodeDeployServiceRole:
     Type: AWS::IAM::Role
@@ -170,127 +81,12 @@ Resources:
             Action: sts:AssumeRole
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/AWSCodeDeployRoleForECS
-      Policies:
-        - PolicyName: CodeDeployECSPolicy
-          PolicyDocument:
-            Version: '2012-10-17'
-            Statement:
-              - Effect: Allow
-                Action:
-                  - ecs:CreateTaskSet
-                  - ecs:DeleteTaskSet
-                  - ecs:DescribeServices
-                  - ecs:UpdateServicePrimaryTaskSet
-                  - elasticloadbalancing:DescribeTargetGroups
-                  - elasticloadbalancing:DescribeListeners
-                  - elasticloadbalancing:ModifyListener
-                  - elasticloadbalancing:DescribeRules
-                  - elasticloadbalancing:ModifyRule
-                  - lambda:InvokeFunction
-                  - cloudwatch:DescribeAlarms
-                  - sns:Publish
-                Resource: '*'
-              - Effect: Allow
-                Action:
-                  - iam:PassRole
-                Resource: '*'
-      Tags:
-        - Key: Name
-          Value: !Sub '${ProjectName}-${Environment}-CodeDeploy-Role'
-        - Key: Project
-          Value: !Ref ProjectName
-
-  CodeBuildProject:
-    Type: AWS::CodeBuild::Project
-    Properties:
-      Name: !Sub '${ProjectName}-${Environment}-build'
-      Description: !Sub 'Build project for ${ProjectName} ${Environment}'
-      ServiceRole: !GetAtt CodeBuildServiceRole.Arn
-      Artifacts:
-        Type: CODEPIPELINE
-      Environment:
-        Type: LINUX_CONTAINER
-        ComputeType: BUILD_GENERAL1_MEDIUM
-        Image: aws/codebuild/amazonlinux2-x86_64-standard:3.0
-        PrivilegedMode: true
-        EnvironmentVariables:
-          - Name: AWS_DEFAULT_REGION
-            Value: !Ref AWS::Region
-          - Name: AWS_ACCOUNT_ID
-            Value: !Ref AWS::AccountId
-          - Name: ECR_REPOSITORY_URI
-            Value:
-              Fn::ImportValue: !Sub '${ProjectName}-${Environment}-ECR-URI'
-          - Name: ECR_REPOSITORY_NAME
-            Value: !Sub '${ProjectName}-${Environment}-app'
-          - Name: PROJECT_NAME
-            Value: !Ref ProjectName
-          - Name: ENVIRONMENT
-            Value: !Ref Environment
-          - Name: CONTAINER_PORT
-            Value: !Ref ContainerPort
-          - Name: S3_BUCKET_NAME
-            Value:
-              Fn::ImportValue: !Sub '${ProjectName}-${Environment}-ImageBucket-Name'
-      Source:
-        Type: CODEPIPELINE
-        BuildSpec: |
-          version: 0.2
-          phases:
-            pre_build:
-              commands:
-                - echo Logging in to Amazon ECR...
-                - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com
-                - echo Getting latest image from ECR...
-                - IMAGE_TAG=$(aws ecr describe-images --repository-name $ECR_REPOSITORY_NAME --query 'sort_by(imageDetails,& imagePushedAt)[-1].imageTags[0]' --output text)
-                - echo "Using image tag:" $IMAGE_TAG
-            build:
-              commands:
-                - echo Build started on `date`
-                - echo Skipping Docker build - using pre-built image from ECR
-                - echo "Image URI:" $ECR_REPOSITORY_URI:$IMAGE_TAG
-            post_build:
-              commands:
-                - echo Build completed on `date`
-                - echo Writing image definitions file...
-                - printf '[{"name":"%s","imageUri":"%s"}]' "${PROJECT_NAME}-${ENVIRONMENT}-container" "$ECR_REPOSITORY_URI:$IMAGE_TAG" > imagedefinitions.json
-                - echo Processing appspec.yaml template...
-                - cp appspec.yaml.template appspec.yaml
-                - sed -i "s|<PROJECT_NAME>|${PROJECT_NAME}|g" appspec.yaml
-                - sed -i "s|<ENVIRONMENT>|${ENVIRONMENT}|g" appspec.yaml
-                - sed -i "s|<CONTAINER_PORT>|${CONTAINER_PORT}|g" appspec.yaml
-                - echo Processing taskdef.json template...
-                - cp taskdef.json.template taskdef.json
-                - sed -i "s|<PROJECT_NAME>|${PROJECT_NAME}|g" taskdef.json
-                - sed -i "s|<ENVIRONMENT>|${ENVIRONMENT}|g" taskdef.json
-                - sed -i "s|<S3_BUCKET_NAME>|${S3_BUCKET_NAME}|g" taskdef.json
-                - sed -i "s|<AWS_ACCOUNT_ID>|${AWS_ACCOUNT_ID}|g" taskdef.json
-                - sed -i "s|<AWS_REGION>|${AWS_DEFAULT_REGION}|g" taskdef.json
-                - sed -i "s|<CONTAINER_PORT>|${CONTAINER_PORT}|g" taskdef.json
-                - cat imagedefinitions.json
-                - echo "Contents of taskdef.json:"
-                - cat taskdef.json
-          artifacts:
-            files:
-              - imagedefinitions.json
-              - appspec.yaml
-              - taskdef.json
-      Tags:
-        - Key: Name
-          Value: !Sub '${ProjectName}-${Environment}-CodeBuild'
-        - Key: Project
-          Value: !Ref ProjectName
 
   CodeDeployApplication:
     Type: AWS::CodeDeploy::Application
     Properties:
       ApplicationName: !Sub '${ProjectName}-${Environment}-app'
       ComputePlatform: ECS
-      Tags:
-        - Key: Name
-          Value: !Sub '${ProjectName}-${Environment}-CodeDeploy-App'
-        - Key: Project
-          Value: !Ref ProjectName
 
   CodeDeployDeploymentGroup:
     Type: AWS::CodeDeploy::DeploymentGroup
@@ -311,23 +107,14 @@ Resources:
       LoadBalancerInfo:
         TargetGroupPairInfoList:
           - TargetGroups:
-              - Name:
-                  Fn::ImportValue: !Sub '${ProjectName}-${Environment}-Blue-TG-Name'
-              - Name:
-                  Fn::ImportValue: !Sub '${ProjectName}-${Environment}-Green-TG-Name'
+              - Name: !ImportValue !Sub '${ProjectName}-${Environment}-Blue-TG-Name'
+              - Name: !ImportValue !Sub '${ProjectName}-${Environment}-Green-TG-Name'
             ProdTrafficRoute:
               ListenerArns:
-                - Fn::ImportValue: !Sub '${ProjectName}-${Environment}-ALB-Listener-ARN'
+                - !ImportValue !Sub '${ProjectName}-${Environment}-ALB-Listener-ARN'
       ECSServices:
-        - ServiceName:
-            Fn::ImportValue: !Sub '${ProjectName}-${Environment}-ECS-Service-Name'
-          ClusterName:
-            Fn::ImportValue: !Sub '${ProjectName}-${Environment}-ECS-Cluster-Name'
-      Tags:
-        - Key: Name
-          Value: !Sub '${ProjectName}-${Environment}-CodeDeploy-DeploymentGroup'
-        - Key: Project
-          Value: !Ref ProjectName
+        - ServiceName: !ImportValue !Sub '${ProjectName}-${Environment}-ECS-Service-Name'
+          ClusterName: !ImportValue !Sub '${ProjectName}-${Environment}-ECS-Cluster-Name'
 
   CodePipeline:
     Type: AWS::CodePipeline::Pipeline
@@ -340,73 +127,96 @@ Resources:
       Stages:
         - Name: Source
           Actions:
-            - Name: SourceAction
+            - Name: ECRSource
               ActionTypeId:
                 Category: Source
-                Owner: ThirdParty
-                Provider: GitHub
-                Version: '1'
-              Configuration:
-                Owner: !Ref GitHubOwner
-                Repo: !Ref GitHubRepo
-                Branch: !Ref GitHubBranch
-                OAuthToken: !Sub '{{resolve:secretsmanager:${GitHubTokenSecret}:SecretString:token}}'
-                PollForSourceChanges: false
-              OutputArtifacts:
-                - Name: SourceOutput
-        - Name: Build
-          Actions:
-            - Name: BuildAction
-              ActionTypeId:
-                Category: Build
                 Owner: AWS
-                Provider: CodeBuild
+                Provider: ECR
                 Version: '1'
-              Configuration:
-                ProjectName: !Ref CodeBuildProject
-              InputArtifacts:
-                - Name: SourceOutput
               OutputArtifacts:
-                - Name: BuildOutput
+                - Name: ImageArtifact
+              Configuration:
+                RepositoryName: !Sub '${ProjectName}-${Environment}-app'
+                ImageTag: latest
+                PollForSourceChanges: false # Will be triggered by EventBridge
+              RunOrder: 1
+            - Name: DeploymentBundleSource
+              ActionTypeId:
+                Category: Source
+                Owner: AWS
+                Provider: S3
+                Version: '1'
+              OutputArtifacts:
+                - Name: DeployArtifact
+              Configuration:
+                S3Bucket: !Ref ExistingArtifactsBucketName
+                S3ObjectKey: 'deployment/deployment.zip'
+                PollForSourceChanges: false
+              RunOrder: 1
         - Name: Deploy
           Actions:
-            - Name: DeployAction
+            - Name: DeployToECS
               ActionTypeId:
                 Category: Deploy
                 Owner: AWS
                 Provider: CodeDeployToECS
                 Version: '1'
+              InputArtifacts:
+                - Name: ImageArtifact
+                - Name: DeployArtifact
               Configuration:
                 ApplicationName: !Ref CodeDeployApplication
                 DeploymentGroupName: !Ref CodeDeployDeploymentGroup
-                TaskDefinitionTemplateArtifact: BuildOutput
+                TaskDefinitionTemplateArtifact: DeployArtifact
                 TaskDefinitionTemplatePath: taskdef.json
-                AppSpecTemplateArtifact: BuildOutput
+                AppSpecTemplateArtifact: DeployArtifact
                 AppSpecTemplatePath: appspec.yaml
-#                Image1ArtifactName: BuildOutput
-#                Image1ContainerName: !Sub '${ProjectName}-${Environment}-container'
-              InputArtifacts:
-                - Name: BuildOutput
-              Region: !Ref AWS::Region
-      Tags:
-        - Key: Name
-          Value: !Sub '${ProjectName}-${Environment}-CodePipeline'
-        - Key: Project
-          Value: !Ref ProjectName
+                Image1ContainerName: !Sub '${ProjectName}-${Environment}-container'
+                Image1ArtifactName: ImageArtifact
+              RunOrder: 1
 
-  GitHubWebhook:
-    Type: AWS::CodePipeline::Webhook
+  ECRImagePushEventRule:
+    Type: AWS::Events::Rule
     Properties:
-      Authentication: GITHUB_HMAC
-      AuthenticationConfiguration:
-        SecretToken: !Sub '{{resolve:secretsmanager:${GitHubTokenSecret}:SecretString:token}}'
-      Filters:
-        - JsonPath: $.ref
-          MatchEquals: refs/heads/{Branch}
-      TargetPipeline: !Ref CodePipeline
-      TargetAction: SourceAction
-      TargetPipelineVersion: !GetAtt CodePipeline.Version
-      RegisterWithThirdParty: true
+      Name: !Sub 'ECRImagePushEventRule-${ProjectName}-${Environment}'
+      Description: 'Rule to trigger CodePipeline on ECR image push'
+      EventPattern:
+        source:
+          - aws.ecr
+        detail-type:
+          - "ECR Image Action"
+        detail:
+          action-type:
+            - PUSH
+          result:
+            - SUCCESS
+          repository-name:
+            - !Sub '${ProjectName}-${Environment}-app'
+          image-tag:
+            - latest
+      Targets:
+        - Arn: !GetAtt CodePipeline.Arn
+          Id: "CodePipelineTrigger"
+          RoleArn: !GetAtt CodePipelineEventRole.Arn
+
+  CodePipelineEventRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: "Allow"
+            Principal:
+              Service: "events.amazonaws.com"
+            Action: "sts:AssumeRole"
+      Policies:
+        - PolicyName: "CodePipeline-Trigger-Policy"
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: "Allow"
+                Action: "codepipeline:StartPipelineExecution"
+                Resource: !GetAtt CodePipeline.Arn
 
 Outputs:
   CodePipelineName:
@@ -414,12 +224,6 @@ Outputs:
     Value: !Ref CodePipeline
     Export:
       Name: !Sub '${ProjectName}-${Environment}-CodePipeline-Name'
-
-  CodeBuildProjectName:
-    Description: 'CodeBuild Project Name'
-    Value: !Ref CodeBuildProject
-    Export:
-      Name: !Sub '${ProjectName}-${Environment}-CodeBuild-Project-Name'
 
   CodeDeployApplicationName:
     Description: 'CodeDeploy Application Name'
