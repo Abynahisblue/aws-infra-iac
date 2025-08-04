@@ -114,11 +114,11 @@ Resources:
             ProdTrafficRoute:
               ListenerArns:
                 - Fn::ImportValue: !Sub '${ProjectName}-${Environment}-ALB-Listener-ARN'
-        ECSservices:
-          - ServiceName:
-              Fn::ImportValue: !Sub '${ProjectName}-${Environment}-ECS-Service-Name'
-            ClusterName:
-              Fn::ImportValue: !Sub '${ProjectName}-${Environment}-ECS-Cluster-Name'
+      ECSServices:
+        - ServiceName:
+            Fn::ImportValue: !Sub '${ProjectName}-${Environment}-ECS-Service-Name'
+          ClusterName:
+            Fn::ImportValue: !Sub '${ProjectName}-${Environment}-ECS-Cluster-Name'
 
   CodePipeline:
     Type: AWS::CodePipeline::Pipeline
