@@ -62,11 +62,36 @@ Resources:
               - Effect: Allow
                 Action:
                   - ecs:DescribeServices
+                  - ecs:DescribeTaskDefinition
+                  - ecs:DescribeTasks
+                  - ecs:ListTasks
+                  - ecs:RegisterTaskDefinition
+                  - ecs:UpdateService
                 Resource: '*'
               - Effect: Allow
                 Action:
                   - iam:PassRole
+                Resource: 
+                  - Fn::ImportValue: !Sub '${ProjectName}-${Environment}-ECSTaskExecutionRole-ARN'
+                  - Fn::ImportValue: !Sub '${ProjectName}-${Environment}-ECSTaskRole-ARN'
+              - Effect: Allow
+                Action:
+                  - ecr:DescribeImages
+                  - ecr:GetAuthorizationToken
+                  - ecr:BatchCheckLayerAvailability
+                  - ecr:GetDownloadUrlForLayer
+                  - ecr:BatchGetImage
                 Resource: '*'
+              - Effect: Allow
+                Action:
+                  - elasticloadbalancing:DescribeTargetGroups
+                  - elasticloadbalancing:DescribeListeners
+                  - elasticloadbalancing:ModifyListener
+                  - elasticloadbalancing:DescribeRules
+                  - elasticloadbalancing:ModifyRule
+                Resource: '*'
+
+
 
   CodeDeployServiceRole:
     Type: AWS::IAM::Role
@@ -142,7 +167,6 @@ Resources:
               Configuration:
                 RepositoryName: !Sub '${ProjectName}-${Environment}-app'
                 ImageTag: latest
-#                PollForSourceChanges: false # Will be triggered by EventBridge
               RunOrder: 1
             - Name: DeploymentBundleSource
               ActionTypeId:
@@ -172,9 +196,9 @@ Resources:
                 ApplicationName: !Ref CodeDeployApplication
                 DeploymentGroupName: !Ref CodeDeployDeploymentGroup
                 TaskDefinitionTemplateArtifact: DeployArtifact
-                TaskDefinitionTemplatePath: taskdef.json
+                TaskDefinitionTemplatePath: taskdef.json.template
                 AppSpecTemplateArtifact: DeployArtifact
-                AppSpecTemplatePath: appspec.yaml
+                AppSpecTemplatePath: appspec.yaml.template
                 Image1ContainerName: !Sub '${ProjectName}-${Environment}-container'
                 Image1ArtifactName: ImageArtifact
               RunOrder: 1
@@ -199,14 +223,9 @@ Resources:
           image-tag:
             - latest
       Targets:
-        - Arn: !Sub 'arn:aws:codepipeline:${AWS::Region}:${AWS::AccountId}:${ProjectName}-${Environment}-pipeline'
+        - Arn: !Sub 'arn:aws:codepipeline:${AWS::Region}:${AWS::AccountId}:pipeline/${CodePipeline}'
           Id: "CodePipelineTrigger"
           RoleArn: !GetAtt CodePipelineEventRole.Arn
-          InputTransformer:
-            InputPathsMap:
-              repository: "$.detail.repository-name"
-              tag: "$.detail.image-tag"
-            InputTemplate: '{"repository": "<repository>", "tag": "<tag>"}'
 
   CodePipelineEventRole:
     Type: AWS::IAM::Role
