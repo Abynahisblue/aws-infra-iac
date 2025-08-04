@@ -114,7 +114,7 @@ Resources:
             ProdTrafficRoute:
               ListenerArns:
                 - Fn::ImportValue: !Sub '${ProjectName}-${Environment}-ALB-Listener-ARN'
-        ECSServices:
+        EcsServices:
           - ServiceName:
               Fn::ImportValue: !Sub '${ProjectName}-${Environment}-ECS-Service-Name'
             ClusterName:
