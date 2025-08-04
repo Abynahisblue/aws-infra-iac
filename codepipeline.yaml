@@ -142,7 +142,7 @@ Resources:
               Configuration:
                 RepositoryName: !Sub '${ProjectName}-${Environment}-app'
                 ImageTag: latest
-                PollForSourceChanges: false # Will be triggered by EventBridge
+#                PollForSourceChanges: false # Will be triggered by EventBridge
               RunOrder: 1
             - Name: DeploymentBundleSource
               ActionTypeId:
