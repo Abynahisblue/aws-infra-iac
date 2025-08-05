@@ -139,10 +139,8 @@ Resources:
       LoadBalancerInfo:
         TargetGroupPairInfoList:
           - TargetGroups:
-              - Name:
-                  Fn::ImportValue: !Sub '${ProjectName}-${Environment}-Blue-TG-Name'
-              - Name:
-                  Fn::ImportValue: !Sub '${ProjectName}-${Environment}-Green-TG-Name'
+              - Name: !Sub '${ProjectName}-${Environment}-Blue-TG'
+              - Name: !Sub '${ProjectName}-${Environment}-Green-TG'
             ProdTrafficRoute:
               ListenerArns:
                 - Fn::ImportValue: !Sub '${ProjectName}-${Environment}-ALB-Listener-ARN'
