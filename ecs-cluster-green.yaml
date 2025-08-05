@@ -83,21 +83,21 @@ Resources:
         - Key: Project
           Value: !Ref ProjectName
 
-  # Green-specific listener rule for testing
-  GreenListenerRule:
-    Type: AWS::ElasticLoadBalancingV2::ListenerRule
-    Condition: IsGreenEnvironment
-    Properties:
-      ListenerArn:
-        Fn::ImportValue: !Sub '${ProjectName}-${Environment}-ALB-Listener-ARN'
-      Priority: 100
-      Conditions:
-        - Field: path-pattern
-          Values: ['/green*']
-      Actions:
-        - Type: forward
-          TargetGroupArn:
-            Fn::ImportValue: !Sub '${ProjectName}-${Environment}-Green-TG-ARN'
+#  # Green-specific listener rule for testing
+#  GreenListenerRule:
+#    Type: AWS::ElasticLoadBalancingV2::ListenerRule
+#    Condition: IsGreenEnvironment
+#    Properties:
+#      ListenerArn:
+#        Fn::ImportValue: !Sub '${ProjectName}-${Environment}-ALB-Listener-ARN'
+#      Priority: 100
+#      Conditions:
+#        - Field: path-pattern
+#          Values: ['/green*']
+#      Actions:
+#        - Type: forward
+#          TargetGroupArn:
+#            Fn::ImportValue: !Sub '${ProjectName}-${Environment}-Green-TG-ARN'
 
 Outputs:
   ECSTaskDefinitionArn:
