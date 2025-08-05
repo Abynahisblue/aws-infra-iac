@@ -203,9 +203,9 @@ Resources:
                 ApplicationName: !Ref CodeDeployApplication
                 DeploymentGroupName: !Ref CodeDeployDeploymentGroup
                 TaskDefinitionTemplateArtifact: DeployArtifact
-                TaskDefinitionTemplatePath: taskdef.json.template
+                TaskDefinitionTemplatePath: taskdef.json
                 AppSpecTemplateArtifact: DeployArtifact
-                AppSpecTemplatePath: appspec.yaml.template
+                AppSpecTemplatePath: appspec.yaml
                 Image1ContainerName: !Sub '${ProjectName}-${Environment}-container'
                 Image1ArtifactName: ImageArtifact
               RunOrder: 1

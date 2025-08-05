@@ -6,6 +6,8 @@
   <component name="ChangeListManager">
     <list default="true" id="af895eb9-f279-4f03-860c-df847522e4cd" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/AugmentWebviewStateStore.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/AugmentWebviewStateStore.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/codepipeline.yaml" beforeDir="false" afterPath="$PROJECT_DIR$/codepipeline.yaml" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -39,6 +41,19 @@
     &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
   }
 }</component>
+  <component name="RunManager">
+    <configuration default="true" type="JetRunConfigurationType">
+      <module name="aws-infra-iac" />
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+    <configuration default="true" type="KotlinStandaloneScriptRunConfigurationType">
+      <module name="aws-infra-iac" />
+      <option name="filePath" />
+      <method v="2" />
+    </configuration>
+  </component>
   <component name="SharedIndexes">
     <attachedChunks>
       <set>
@@ -72,6 +87,7 @@
       <workItem from="1753956157486" duration="8184000" />
       <workItem from="1754034907536" duration="20651000" />
       <workItem from="1754302049460" duration="9349000" />
+      <workItem from="1754382073073" duration="3008000" />
     </task>
     <servers />
   </component>
